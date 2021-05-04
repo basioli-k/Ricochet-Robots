@@ -32,7 +32,7 @@ class Field{
 	}
 
 	function draw_field(){
-		echo "<td style = \"";
+		echo "<td class=\"board_field\" style = \"";
 		if($this->robot != NULL)
 			echo "background: " . $this->robot . ";";
 		//treba dodati i za one ciljeve ali o tom po tom
@@ -42,7 +42,7 @@ class Field{
 				echo "border-" . $wall . ": 3px solid brown;";
 		}
 
-		echo " \"> . </td>";
+		echo " \">  </td>";
 	}
 
 };

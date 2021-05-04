@@ -10,6 +10,7 @@ if( !isset($_SESSION["game"] ) ){
 	$_SESSION["game"] = $game; //ovo je u game.php
 }
 
+//nebitan dio, čisto za pokazat kako se kreće robot
 if(isset($_POST["robot"]) && isset($_POST["direction"]) && isset($_SESSION["game"])){
 
 	$board = $_SESSION["game"]->board;
@@ -30,7 +31,7 @@ function display(){
 			<meta charset="utf-8">
 			<title>Ricochet robots</title>
 
-			<link rel="stylesheet" href="">
+			<link rel="stylesheet" type="text/css" href="ricochet-robots.css">
 		</head>
 		<body>
 			<?php draw_board() ?>
@@ -59,7 +60,7 @@ function display(){
 function draw_board(){
 	$board = $_SESSION["game"]->board;
 	?>
-	<table style= "font-size: x-large; width: 200px; border-collapse: collapse;">
+	<table class = "board">
 	<?php
 	for($i = 0 ; $i < count($board); $i++){
 		?>

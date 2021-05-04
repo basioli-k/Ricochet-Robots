@@ -1,0 +1,10 @@
+.board {
+    font-size: x-large;
+    border-collapse: collapse;
+}
+
+.board_field{
+    width: 35px;
+    height: 35px;
+    border: 1.5px solid black;
+}
