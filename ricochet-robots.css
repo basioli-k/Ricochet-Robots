@@ -1,6 +1,7 @@
 .board {
     font-size: x-large;
     border-collapse: collapse;
+    text-align: center;
 }
 
 .board_field{
