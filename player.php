@@ -52,9 +52,12 @@ class Player{
 
 		$i = $robot_i;
 		$j = $robot_j;
+		
 		$steps = 0;
 		
-		while( !$board[$i][$j]->walls[$direction] &&  ($board[$i][$j]->robot === NULL || $board[$i][$j]->robot === $robot) ){
+		//todo dodati checkove da i+ i_shift ne izlazi iz ploce...
+		//moguce da ne treba
+		while( !$board[$i][$j]->walls[$direction] && $board[$i + $i_shift][$j + $j_shift]->robot === NULL) ){
 				$i += $i_shift;
 				$j += $j_shift;
 				$steps += 1;

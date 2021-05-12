@@ -17,7 +17,6 @@ class Field{
 			$this->walls["left"] = true;
 		}
 
-		
 		if($walls[1] === "1")
 			$this->walls["top"] = true;
 		
