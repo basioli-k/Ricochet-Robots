@@ -25,6 +25,8 @@ class Game{
 };
 
 if(!isset($game)){
+	// order of walls is left, top, right, bottom
+	// ex. 1101, walls are left, top, botom
 	$board = [  [new Field("1101"), new Field("0100"), new Field("0110")],
 				[new Field("1100"), new Field("0010", NULL, RED), new Field("1010")],
 				[new Field("1001"), new Field("0001"), new Field("0011")]];

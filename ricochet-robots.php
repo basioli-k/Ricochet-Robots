@@ -57,6 +57,7 @@ function display(){
 
 }
 
+//staviti u klasu game
 function draw_board(){
 	$board = $_SESSION["game"]->board;
 	?>
