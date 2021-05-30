@@ -1,7 +1,6 @@
 <?php
 require_once("constants.php");
 require_once("field.php");
-
 class Player{
 	public $name;
 
