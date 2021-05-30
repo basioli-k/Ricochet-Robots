@@ -1,16 +1,19 @@
 <?php
-require_once("constants.php");
-require_once("field.php");
-class Player{
-	public $name;
+
+class Player extends Model{
+
+	protected static $table = "ricochet_robots_players";
+	protected static $attributes = array("id" => "int", "username" => "string", "password_hash" => "string", "email" => "string",
+                                        "registration_sequence" => "string", "has_registered" => "int", "games_played" => "int",
+										"tokens_won" => "int", "games_won" => "int");
 
 	public $scored_targets; //array gdje ubacujemo sve tokene koje igrac osvoji
 
 	//array of steps the player offered for his solution
 	public $offered_solution;
 
-	function __construct($name){
-		$this->name = $name;
+	function __construct($row){
+		$this->columns = $row;
 	}
 	
 	function move_robot(&$board, $robot, $direction){
@@ -66,6 +69,15 @@ class Player{
 		$board[$i][$j]->robot = $robot;
 
 		return $steps; 
+	}
+
+	static function getPlayer($username) {
+		$players = Player::where(array("username" => $username));
+		
+		if(!$players || !isset($players[0]))
+			return false;
+			
+		return $players[0];
 	}
 };
 ?>

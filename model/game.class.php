@@ -1,10 +1,5 @@
 <?php
 
-require_once("field.php");
-require_once("constants.php");
-require_once("game.php");
-require_once("player.php");
-
 class Game{
 	public $board;
 	public $players;
@@ -22,17 +17,27 @@ class Game{
 	function add_player($player){
 		array_push($this->players, $player);
 	}
-};
 
-if(!isset($game)){
-	// order of walls is left, top, right, bottom
-	// ex. 1101, walls are left, top, botom
-	$board = [  [new Field("1101"), new Field("0100"), new Field("0110")],
-				[new Field("1100"), new Field("0010", NULL, RED), new Field("1010")],
-				[new Field("1001"), new Field("0001"), new Field("0011")]];
-
-	$player = new Player("karlo");
-	$game = new Game($board, array($player));
+	function draw_board(){
+		$board = $_SESSION["game"]->board;
+		?>
+		<table class = "board">
+		<?php
+		for($i = 0 ; $i < count($board); $i++){
+			?>
+			<tr>
+			<?php
+			for($j = 0 ; $j < count($board[$i]); $j++){
+				$board[$i][$j]->draw_field();
+			}
+			?>
+			</tr>
+			<?php
+		}
+		?>
+		</table>
+		<?php
+	}
 }
 
 ?>

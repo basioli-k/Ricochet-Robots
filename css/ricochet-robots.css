@@ -1,0 +1,59 @@
+/* Game */
+
+.board {
+    font-size: x-large;
+    border-collapse: collapse;
+    text-align: center;
+}
+
+.board_field{
+    width: 35px;
+    height: 35px;
+    border: 1.5px solid black;
+}
+
+
+/* Main menu */
+
+.main_menu{
+    list-style-type: none;   
+}
+
+.main_menu_entry{
+    margin: 10px;
+}
+
+.main_menu_button{
+
+}
+
+/* Stats */
+.radio_stat {
+    list-style-type: none;
+    margin: 3px;
+    padding: 0;
+    font-size:large;
+}
+
+.radio_stat_element{
+    display: inline;
+    margin-right:5px;
+}
+
+.stat_table{
+    border-collapse: collapse;
+    text-align: center;
+    margin: 5px;
+}
+
+.stat_row{
+
+}
+
+.stat_row_head{
+    border: 1.5px solid black;
+}
+
+.stat_row_data{
+    border: 1.5px solid black;
+}   
