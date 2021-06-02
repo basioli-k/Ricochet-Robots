@@ -4,6 +4,7 @@
     font-size: x-large;
     border-collapse: collapse;
     text-align: center;
+    margin-left: 25%;
 }
 
 .board_field{
@@ -12,6 +13,41 @@
     border: 1.5px solid black;
 }
 
+.fa-football-ball{
+    color: rgb(214, 200, 200);
+}
+
+i{
+    vertical-align: middle;
+}
+
+.fa-stack{
+    font-size: 0.7em;
+}
+
+.fa-robot{
+    font-size: 1.5em;
+}
+
+.fa-moon{
+    font-size: 1.7em;
+}
+
+.fa-meteor{
+    font-size: 1.7em;
+}
+
+.fa-cogs{
+    font-size: 1.7em;
+}
+
+.fa-battle-net{
+    font-size: 1.7em;
+}
+
+.fa-star{
+    font-size: 1.7em;
+}
 
 /* Main menu */
 
@@ -56,4 +92,4 @@
 
 .stat_row_data{
     border: 1.5px solid black;
-}   
+}
