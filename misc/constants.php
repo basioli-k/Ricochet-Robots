@@ -2,14 +2,15 @@
 const RED = "red";
 const BLUE = "blue";
 const GREEN = "green";
-const YELLOW = "yellow";
+const YELLOW = "#e0c704";
 const BLACK = "black";
+const PURPLE = "purple";
 
-const STAR = "star";
-const PLANET = "planet";
-const GEAR = "gear";
-const MOON = "moon";
-const VORTEX = "vortex";
+const STAR = "fas fa-star";
+const PLANET = "fas fa-meteor";
+const GEAR = "fas fa-cogs";
+const MOON = "fas fa-moon";
+const VORTEX = "fab fa-battle-net";
 
 const BOARD_DIMENSION = 16;
 ?>
