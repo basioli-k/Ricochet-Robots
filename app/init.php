@@ -1,4 +1,5 @@
 <?php
+
 require_once __SITE_PATH . '/app/database/' . 'database.class.php';
 require_once __SITE_PATH . '/misc/constants.php';
 require_once __SITE_PATH . '/model/model.class.php';

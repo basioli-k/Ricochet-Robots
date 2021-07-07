@@ -1,3 +1,25 @@
+function move_robot(data){
+        $.ajax( 
+        {
+            url: "./app/moveRobot.php",
+            type: "POST",
+            data: data,
+            dataType: "json",
+            success: function( data )
+            {
+                console.log( "USPJEH " + JSON.stringify( data ) );
+                location.reload();
+                
+            },
+            error: function( xhr, status ) 
+            {
+                console.log(xhr);
+                if( status !== null )
+                    console.log( "FAIL (" + status + ")" );
+            }
+        } );
+}
+
 function allowRobotMovement(){
     var robot = null;
     $( ".robot_field" ).each(function(index) {
@@ -30,8 +52,15 @@ function allowRobotMovement(){
             rgb = rgb.replace(/[^\d,]/g, '').split(',');
             console.log(rgb);
 
-            robot = rgbToHex(rgb[0], rgb[1], rgb[2]);
-            console.log(robot)
+            const hexColor = rgbToHex(rgb[0], rgb[1], rgb[2]);
+            
+            data = {
+                username: getUsername(),
+                robot: hexColor,
+                direction: direction
+            };
+
+            move_robot(data);
         }
 
 
