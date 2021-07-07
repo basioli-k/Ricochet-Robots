@@ -7,6 +7,15 @@ function getUsername(){
     return cookie.username
 }
 
+function componentToHex(c) {
+    var hex = parseInt(c).toString(16);
+    return hex.length == 1 ? "0" + hex : hex;
+  }
+  
+  function rgbToHex(r, g, b) {
+    return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+  }
+  
 
 // $(document).ready(function () {
 //     console.log(getUsername())
