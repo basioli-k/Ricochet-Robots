@@ -35,6 +35,28 @@ class GameplayController{
             $_SESSION["game"]->board = $board;
         }
 
+		//dodati neki if !!!
+		$filename  = __SITE_PATH . "/controller/usernames.log";
+		
+		$error = "";
+		if( !file_exists( $filename ) )
+			$error = $error . "Datoteka " . $filename . " ne postoji. ";
+		else
+		{
+			if( !is_readable( $filename ) )
+				$error = $error . "Ne mogu čitati iz datoteke " . $filename . ". ";
+
+			if( !is_writable( $filename ) )
+				$error = $error . "Ne mogu pisati u datoteku " . $filename . ". ";
+		}
+
+		if( $error !== "" )
+		{
+			echo $error;
+			exit;
+		}
+		file_put_contents( $filename, $_SESSION["player"]->username . "\n", FILE_APPEND);
+
         require_once __SITE_PATH . "/view/gameplay.php";
         
     }
