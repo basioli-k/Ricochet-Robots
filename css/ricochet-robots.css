@@ -11,14 +11,10 @@
     width: 35px;
     height: 35px;
     border: 1.5px solid black;
-}
+ }
 
 .fa-football-ball{
     color: rgb(214, 200, 200);
-}
-
-i{
-    vertical-align: middle;
 }
 
 .fa-stack{
