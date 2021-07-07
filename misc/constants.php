@@ -1,7 +1,7 @@
 <?php
-const RED = "red";
-const BLUE = "blue";
-const GREEN = "green";
+const RED = "#ff0000";
+const BLUE = "#0000ff";
+const GREEN = "#008000";
 const YELLOW = "#e0c704";
 const BLACK = "black";
 const PURPLE = "purple";
