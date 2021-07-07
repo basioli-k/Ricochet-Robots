@@ -3,9 +3,8 @@
 class StatsController {
 
     function index(){
-
-        if(isset($_POST["sort_by"]))
-            $sort_by = $_POST["sort_by"];
+        if(isset($_POST["btn_stats"]))
+            $sort_by = $_POST["btn_stats"];
         else  
             $sort_by = "games_won";
 

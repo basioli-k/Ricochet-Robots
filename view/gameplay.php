@@ -19,7 +19,12 @@
     <input name = "direction" type="submit" value="top">
     <input name = "direction" type="submit" value="right">
     <input name = "direction" type="submit" value="bottom">
+    
+    <br />
+</form>
 
+<form action=" <?php echo __SITE_URL ?>/index.php" method="get">
+    <input type="submit" value="Back"> 
 </form>
 
 <script src= <?php echo __SITE_URL . "/js/gameplay.js"; ?>></script>
