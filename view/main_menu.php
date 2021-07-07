@@ -3,7 +3,7 @@
 <form action="<?php echo __SITE_URL; ?>/index.php">
 <ul class="main_menu">
     <li class="main_menu_entry">
-        <button type="submit" name="rt" value="gameplay" class="main_menu_button"> Play game </button>
+        <button type="submit" id="play" name="rt" value="gameplay" class="main_menu_button"> Play game </button>
     </li>
     <li class="main_menu_entry">
         <button type="submit" name="rt" value="stats" class="main_menu_button"> Stats and leaderboards </button>

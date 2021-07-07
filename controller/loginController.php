@@ -53,6 +53,8 @@ class LoginController
         }
 
         $_SESSION["player"] = $player;
+        // $_COOKIE["username"] = $player->username;
+        setcookie("username", $player->username, time() + 86400); //24 hours
 
         require_once __SITE_PATH . "/controller/mainMenuController.php";
         
