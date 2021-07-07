@@ -33,35 +33,35 @@ class Field{
 	function draw_field(){
 		echo "<td class=\"board_field\" style = \"";
 		
-		$bool = 1;
+		// ovo je za polja u sredini
+		$middle_field = false;
 		if($this->robot === BLACK){
 			echo "background: black; ";
-			$bool = 0;
+			$middle_field = true;
 		}
 		//treba dodati i za one ciljeve ali o tom po tom
 
-		foreach($this->walls as $wall=>$exists){
+		foreach($this->walls as $wall=>$exists)
 			if ($exists)
-			{
 				echo "border-" . $wall . ": 5px solid brown;";
-			}
-		}
+
 		echo "\">";
-		if($bool === 1){
+		if(! $middle_field ){
 			if($this->robot == NULL && $this->goal == NULL){
 				echo "<i class=\"fas fa-football-ball \"></i>";
 			}
 			else{
 				if($this->goal != NULL){
 					echo "<span class=\"fa-stack\">";
-					echo "<i class=\"fa-stack-1x ".$this->goal[1]."\" style = \"color:".$this->goal[0]."\"></i>";
-					//if($this->robot != NULL) echo "<i class=\"fas fa-robot fa-stack-1x\" style = \"color:".$this->robot."\"></i>";
-					//ovim se mogu preklapati ikone, ali loše izgleda
+					
+					if($this->robot != NULL) echo "<i class=\"fas fa-robot fa-stack-1x\" style = \"background-color:".$this->robot."\"></i>";
+					else echo "<i class=\"fa-stack-1x ".$this->goal[1]."\" style = \"color:".$this->goal[0]."\"></i>";
+
 					echo "</span>";
 				}
 				else{
 					echo "<span class=\"fa-stack\">";
-					echo "<i class=\"fas fa-robot fa-stack-1x\" style = \"color:".$this->robot."\"></i>";
+					echo "<i class=\"fas fa-robot fa-stack-1x\" style = \"background-color:".$this->robot."\"></i>";
 					echo "</span>";
 				}
 			}
