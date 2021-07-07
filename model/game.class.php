@@ -15,7 +15,7 @@ class Game{
 	}
 
 	function add_player($player){
-		array_push($this->players, $player);
+		$this->players[$player->username] = $player;
 	}
 
 	function draw_board(){

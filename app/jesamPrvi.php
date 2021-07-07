@@ -36,17 +36,13 @@ if( $error !== "" )
 
 $msg = file_get_contents($filename);
 // echo "tu sam" . $msg;
-if (count(explode("\n", $msg)) === 2) {
+if (count(explode(",", $msg)) === 2) {
     $response = [];
     $response[ 'prvi' ] = true;
-    $response['tu'] = $msg;
-    $response['count'] = count(explode("\n", $msg));
     sendJSONandExit( $response );
 } else {
     $response = [];
     $response[ 'prvi' ] = false;
-    $response['tu'] = $msg;
-    $response['count'] = count(explode("\n", $msg));
     sendJSONandExit( $response );
 }
 
