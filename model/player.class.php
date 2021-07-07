@@ -9,7 +9,7 @@ class Player extends Model{
 
 	public $scored_targets; //array gdje ubacujemo sve tokene koje igrac osvoji
 
-	//array of steps the player offered for his solution
+	//number of steps the player offered for his solution
 	public $offered_solution;
 
 	function __construct($row){
