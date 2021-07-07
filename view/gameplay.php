@@ -15,7 +15,14 @@
     <input name = "direction" type="submit" value="top">
     <input name = "direction" type="submit" value="right">
     <input name = "direction" type="submit" value="bottom">
-
+    
+    <br />
 </form>
+
+<form action=" <?php echo __SITE_URL ?>/index.php" method="get">
+    <input type="submit" value="Back"> 
+</form>
+
+
 
 <?php require_once __SITE_PATH . "/view/_footer.php";?>

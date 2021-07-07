@@ -80,26 +80,51 @@ i{
     list-style-type: none;
     margin: 3px;
     padding: 0;
-    font-size:large;
+    font-size: large;
 }
 
 .radio_stat_element{
     display: inline;
-    margin-right:5px;
+    margin-right: 5px;
 }
 
 .stat_table{
     border-collapse: collapse;
     text-align: center;
-    margin: 5px;
+    margin-left: 50px;
 }
 
 .stat_row{
 
 }
+.btn_group:after{
+    content: "";
+    clear: both;
+    display: table;
+}
+
+.btn_stats {
+    background-color: rgb(179, 57, 12);
+    border: 1px solid rgb(179, 57, 12);
+    color: white;
+    padding: 10px 24px;
+    cursor: pointer;
+}
+
+#back
+{
+    
+}
+
+.btn_stats:hover{
+    background-color: rgb(160, 157, 157);
+}
 
 .stat_row_head{
     border: 1.5px solid black;
+    background-color: rgb(179, 57, 12);
+    color: black;
+    min-width: 130px;
 }
 
 .stat_row_data{
