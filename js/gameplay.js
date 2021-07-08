@@ -57,9 +57,9 @@ function waitOnHost(){
                 // Sljedeća naredba ne treba: kako je dataType="json", data je već konvertiran iz stringa u objekt.
                 // var data = JSON.parse( data );
                 console.log( "HOST je ready" + JSON.stringify( data ) );
-                setTimeout(() => {
-                    $("#btn").prop('disabled', true);
-                }, 60000);
+                //setTimeout(() => {
+                //   $("#btn").prop('disabled', true);
+                //}, 60000);
             },
             error: function( xhr, status )
             {
