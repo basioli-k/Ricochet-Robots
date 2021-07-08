@@ -46,7 +46,7 @@ class Field{
 		$middle_field = false;
 		if($this->robot !== NULL)
 		{
-			echo "background: ". $this->robot. ";";
+			echo "background-color: ". $this->robot. ";";
 		}
 		//treba dodati i za one ciljeve ali o tom po tom
 
@@ -56,24 +56,6 @@ class Field{
 
 		echo "\">";
 		
-		/*if($this->robot == NULL && $this->goal == NULL){
-			echo "<i class=\"fas fa-football-ball \"></i>";
-		}
-		else{
-			if($this->goal != NULL){
-				echo "<span class=\"fa-stack\">";
-				
-				if($this->robot != NULL) echo "<i class=\"fas fa-robot fa-stack-1x\" style = \"background-color:".$this->robot."\"></i>";
-				else echo "<i class=\"fa-stack-1x ".$this->goal[1]."\" style = \"color:".$this->goal[0]."\"></i>";
-
-				echo "</span>";
-			}
-			else{
-				echo "<span class=\"fa-stack\">";
-				echo "<i class=\"fas fa-robot fa-stack-1x\" style = \"background-color:".$this->robot."\"></i>";
-				echo "</span>";
-			}
-		}*/
 		if($this->robot !== BLACK){
 			if($this->robot !== NULL)
 			{
