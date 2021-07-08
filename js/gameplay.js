@@ -40,10 +40,87 @@ function waitConfirmation(){
             {
                 console.log(xhr);
                 if( status !== null )
-                    console.log( "waitConfirmation :: greška pri slanju poruke (" + status + ")" );
+                    console.log( "FAIL (" + status + ")" );
             }
         } );
     waitOnHost();
+}
+
+function allowRobotMovement(){
+    var robot = null;
+    $( ".robot_field" ).each(function(index) {
+        $(this).on("click", () => {
+            robot = $(this).css('background-color');
+        });
+    });
+    document.onkeydown = function(event) {
+        let direction = null;
+
+        switch (event.key){
+            case 'w':
+                direction = "top";
+                break;
+            case 'a':
+                direction = "left";
+                break;
+            case 's':
+                direction = "bottom";
+                break;
+            case 'd':
+                direction = "right";
+                break;
+            default:
+                break;
+        }
+
+        if(robot != null && direction != null){
+            var rgb = robot;
+            rgb = rgb.replace(/[^\d,]/g, '').split(',');
+            console.log(rgb);
+
+            const hexColor = rgbToHex(rgb[0], rgb[1], rgb[2]);
+            
+            data = {
+                username: getUsername(),
+                robot: hexColor,
+                direction: direction
+            };
+
+            move_robot(data);
+        }
+
+
+    };
+    
+}
+
+function waitConfirmation(){
+    $('body').hide();
+    while(!confirm("Press okay to start game!")){
+    }
+    $('body').show();
+    // $.ajax( 
+    //     {
+    //         url: "./app/notifiyAll.php",
+    //         type: "GET",
+    //         data: 
+    //         { 
+    //             username: getUsername(), 
+    //             msg: encodeURI( "Done" ) 
+    //         },
+    //         dataType: "json",
+    //         success: function( data )
+    //         {
+    //             console.log( "waitConfirmation :: success :: data = " + JSON.stringify( data ) );
+    //         },
+    //         error: function( xhr, status ) 
+    //         {
+    //             if( status !== null )
+    //                 console.log( "waitConfirmation :: greška pri slanju poruke (" + status + ")" );
+    //         }
+    //     } );
+
+    //korisnik vidi
 }
 
 function waitOnHost(){
