@@ -1,6 +1,4 @@
 <?php 
-// define( '__SITE_PATH', realpath( dirname( __FILE__ ) ) );
-// define( '__SITE_URL', dirname( $_SERVER['PHP_SELF'] ) );
 
 function sendJSONandExit( $message )
 {

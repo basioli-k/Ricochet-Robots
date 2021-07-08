@@ -1,6 +1,11 @@
 <?php require_once  __SITE_PATH . "/view/_header.php";?>
 
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
 <?php $_SESSION["game"]->draw_board() ?>
+<br>
+<div id="chat"></div>
+<br />
+<input type="text" id="txt"><button id="btn">Pošalji</button>
 <br>
 <form action=" <?php echo __SITE_URL ?>/index.php?rt=gameplay" method="post">
     <!-- bolje da biramo klikom na robota na ploci bas -->
@@ -11,10 +16,6 @@
         <option value=<?php echo YELLOW; ?>> Yellow </option>
     </select>
     <br />
-    <div id="chat"></div>
-    <br />
-    <input type="text" id="txt"><button id="btn">Pošalji</button>
-    <br>
     <input name = "direction" type="submit" value="left">
     <input name = "direction" type="submit" value="top">
     <input name = "direction" type="submit" value="right">
