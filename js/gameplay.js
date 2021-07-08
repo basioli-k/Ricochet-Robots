@@ -5,9 +5,18 @@ $(document).ready(function () {
             url: "./app/jesamPrvi.php",
             type: "GET",
             dataType: "json",
-            async: false,
+            // async: false,
+            beforeSend: function(){
+                console.log("prije ajaxa skrivam body");
+                $('body').hide();
+                // setTimeout(function () {
+                //     console.log("tko ceka doceka");
+                // }, 5000);
+            
+            },
             success: function( data ) 
             {
+                console.log("poslan sam");
                 if (data.prvi)
                     waitConfirmation()
                 else
@@ -19,9 +28,6 @@ $(document).ready(function () {
             }
         } );
 
-    $( "#btn" ).on( "click", posaljiPoruku );
-
-    cekajPoruku();
 })
 
 function waitConfirmation(){
@@ -31,10 +37,12 @@ function waitConfirmation(){
         {
             url: "./app/notifyAll.php",
             type: "GET",
-            async: false,
+            // async: false,
             success: function( data )
             {
-                console.log("Svi su obavijesteni")
+                console.log("Svi su obavijesteni");
+                $('body').show();
+                waitOnHost();
             },
             error: function( xhr, status ) 
             {
@@ -42,8 +50,7 @@ function waitConfirmation(){
                 if( status !== null )
                     console.log( "FAIL (" + status + ")" );
             }
-        } );
-    waitOnHost();
+    });
 }
 
 function allowRobotMovement(){
@@ -94,49 +101,31 @@ function allowRobotMovement(){
     
 }
 
-function waitConfirmation(){
-    $('body').hide();
-    while(!confirm("Press okay to start game!")){
-    }
-    $('body').show();
-    // $.ajax( 
-    //     {
-    //         url: "./app/notifiyAll.php",
-    //         type: "GET",
-    //         data: 
-    //         { 
-    //             username: getUsername(), 
-    //             msg: encodeURI( "Done" ) 
-    //         },
-    //         dataType: "json",
-    //         success: function( data )
-    //         {
-    //             console.log( "waitConfirmation :: success :: data = " + JSON.stringify( data ) );
-    //         },
-    //         error: function( xhr, status ) 
-    //         {
-    //             if( status !== null )
-    //                 console.log( "waitConfirmation :: greška pri slanju poruke (" + status + ")" );
-    //         }
-    //     } );
-
-    //korisnik vidi
-}
-
 function waitOnHost(){
     $.ajax(
         {
             url: "./app/hostReady.php",
             type: "GET",
-            async: false,
+            // async: false,
             success: function( data ) 
             {
                 // Sljedeća naredba ne treba: kako je dataType="json", data je već konvertiran iz stringa u objekt.
                 // var data = JSON.parse( data );
                 console.log( "HOST je ready" + JSON.stringify( data ) );
+
                 //setTimeout(() => {
                 //   $("#btn").prop('disabled', true);
                 //}, 60000);
+
+                $('body').show();
+                $( "#btn" ).on( "click", posaljiPoruku );
+
+                cekajPoruku();
+
+                allowRobotMovement(); 
+                // TODO ovo ovdje je sada tu cisto da pokazujemo kako stvari idu
+                // inace se ova funkcija poziva samo igracu koji trenutno pokazuje rjesenje
+
             },
             error: function( xhr, status )
             {
