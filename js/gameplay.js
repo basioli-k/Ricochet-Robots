@@ -1,4 +1,5 @@
-var ime = getUsername(), timestamp = 0;
+var ime = getUsername(), timestamp = 0, countdown = 0, winner = "", faza_igre = 0;
+
 $(document).ready(function () {
     $.ajax(
         {
@@ -9,14 +10,9 @@ $(document).ready(function () {
             beforeSend: function(){
                 console.log("prije ajaxa skrivam body");
                 $('body').hide();
-                // setTimeout(function () {
-                //     console.log("tko ceka doceka");
-                // }, 5000);
-            
             },
             success: function( data ) 
             {
-                console.log("poslan sam");
                 if (data.prvi)
                     waitConfirmation()
                 else
@@ -30,19 +26,18 @@ $(document).ready(function () {
 
 })
 
-function waitConfirmation(){
-    while(!confirm("Press okay to start game!")){
-    }
+function postaviTimer(time) {
     $.ajax( 
         {
-            url: "./app/notifyAll.php",
+            url: "./app/postaviTimer.php",
             type: "GET",
+            data: {
+                wait: time,
+            },
             // async: false,
             success: function( data )
             {
-                console.log("Svi su obavijesteni");
-                $('body').show();
-                waitOnHost();
+                console.log("Svi ce biti obavijesteni za: " + time + " sekundi");
             },
             error: function( xhr, status ) 
             {
@@ -51,6 +46,14 @@ function waitConfirmation(){
                     console.log( "FAIL (" + status + ")" );
             }
     });
+
+}
+
+function waitConfirmation(){
+    while(!confirm("Press okay to start game!")){
+    }
+    postaviTimer(0);
+    waitOnHost();
 }
 
 function allowRobotMovement(){
@@ -104,7 +107,7 @@ function allowRobotMovement(){
 function waitOnHost(){
     $.ajax(
         {
-            url: "./app/hostReady.php",
+            url: "./app/cekajTimer.php",
             type: "GET",
             // async: false,
             success: function( data ) 
@@ -113,16 +116,16 @@ function waitOnHost(){
                 // var data = JSON.parse( data );
                 console.log( "HOST je ready" + JSON.stringify( data ) );
 
-                //setTimeout(() => {
-                //   $("#btn").prop('disabled', true);
-                //}, 60000);
+
 
                 $('body').show();
                 $( "#btn" ).on( "click", posaljiPoruku );
 
                 cekajPoruku();
 
-                allowRobotMovement(); 
+                igraj("licitacija");
+
+                // igraj("licitacija");
                 // TODO ovo ovdje je sada tu cisto da pokazujemo kako stvari idu
                 // inace se ova funkcija poziva samo igracu koji trenutno pokazuje rjesenje
 
@@ -132,17 +135,71 @@ function waitOnHost(){
                 console.log( "cekajPoruku :: error :: status = " + status );
                 // Nešto je pošlo po krivu...
                 // Ako se dogodio timeout, tj. server nije ništa poslao u zadnjih XY sekundi,
-                // pozovi ponovno cekajPoruku.
+                // pozovi ponovno waitOnHost.
                 if( status === "timeout" )
                     waitOnHost();
             }
         } );
 }
 
+function srediLicitaciju(licitacija) {
+    console.log(licitacija);
+    var glasovi = licitacija.split(',');
+    var glasovi_sort = new Array(glasovi.length - 1);
+    for (var i = 0; i < glasovi.length - 1; i++) {
+        glasovi_sort[i] = glasovi[i].split(':'); 
+    }
+    
+    // Ovu funkciju bi trebalo malo prilagoditi pravilima igre.
+    glasovi_sort.sort(function(a, b) {
+        var a2 = parseInt(a[2]); var a0 = parseInt(a[0]);
+        var b2 = parseInt(b[2]); var b0 = parseInt(b[0]);
+        if (a2 !== b2) return a2 - b2;
+        return a0 - b0;
+    })
+    return glasovi_sort;
+}
+
+function dajLicitaciju() {
+    var licitacija;
+    $.ajax({
+        url: './app/dajLicitaciju.php',
+        type: "GET",
+        // Asinkrono jer se radi o upitu za podatcima.
+        async: false,
+        success: function(data) {
+
+            console.log(licitacija);
+            licitacija = srediLicitaciju(data.licitacija);
+        }
+    })
+    return licitacija;
+}
+
+function igraj(faza_igre) {
+
+    if (faza_igre === "licitacija") {
+        console.log("licitacija");
+        postaviTimer(60);
+        $.ajax({
+            url: "./app/cekajTimer.php",
+            type: "GET",
+            success: function (data) {
+                igraj("pomicanje");
+            }
+        })
+    }
+    else if (faza_igre === "pomicanje") {
+        var licitacija = dajLicitaciju();
+        // popis onih koji su vec pokusali napraviti svoj potez.
+        var odigrali = [];
+        console.log(licitacija[0][1]);
+        igraj("licitacija");
+    }
+}
+
 function cekajPoruku() 
 {
-    console.log( "cekajPoruku" );
-
     // Recimo, koristimo $.ajax (možemo i $.get).
     $.ajax(
     {
@@ -179,6 +236,12 @@ function cekajPoruku()
                 $("#chat").append( "<div>" + decodeURI( data.msg ) + "</div>" );
                 timestamp = data.timestamp;
             
+                var licitacija = srediLicitaciju(data.licitacija);
+                $("#ranking").empty();
+                for (var i = 0; i < licitacija.length; i++) {
+                    $("#ranking").append('<div>' + '<b>' + licitacija[i][1] + '</b>: ' + licitacija[i][2] + '</div>' );
+                }
+                
                 // Ova poruka je gotova, čekaj iduću.
                 cekajPoruku();
             }
@@ -198,7 +261,6 @@ function cekajPoruku()
 
 function posaljiPoruku() 
 {
-    console.log( "posaljiPoruku" );
     // Za slanje poruke koristimo GET, poslat ćemo ime i poruku.
     // Recimo, koristimo $.ajax (možemo i $.get).
     $.ajax( 
