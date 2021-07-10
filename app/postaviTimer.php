@@ -1,4 +1,4 @@
-<?php
+<?php 
 function sendJSONandExit( $message )
 {
     // Kao izlaz skripte pošalji $message u JSON formatu i prekini izvođenje.
@@ -8,8 +8,7 @@ function sendJSONandExit( $message )
     exit( 0 );
 }
 
-
-$filename  = 'ready.log';
+$filename  = "timer.log";
 
 $error = "";
 if( !file_exists( $filename ) )
@@ -21,9 +20,9 @@ else
 
     if( !is_writable( $filename ) )
         $error = $error . "Ne mogu pisati u datoteku " . $filename . ". ";
-}
+} 
 
-
+// echo "prije errora " . $error;
 if( $error !== "" )
 {
     $response = [];
@@ -32,17 +31,17 @@ if( $error !== "" )
     sendJSONandExit( $response );
 }
 
-$msg = file_get_contents($filename);
+$wait = isset( $_GET['wait'] ) ? $_GET['wait'] : '';
 
-while($msg != "1")
-{
-    usleep( 10000 ); // odspavaj 10ms da CPU malo odmori :)
-    clearstatcache();
-    $msg = file_get_contents($filename);
+if ($wait !== '') {
+    file_put_contents($filename, strval(time() + $wait));
+    $response = [];
+    sendJSONandExit( $response );
 }
-
-$response = array();
-
-sendJSONandExit( $response );
+else {
+    $response = [];
+    $response['error'] = "nije postavljeno vrijeme cekanja";
+    sendJSONandExit( $response );
+}
 
 ?>

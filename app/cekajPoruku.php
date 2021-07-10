@@ -29,6 +29,18 @@ else
         $error = $error . "Ne mogu pisati u datoteku " . $filename . ". ";
 }
 
+$licitacija = 'licitacija.log';
+
+if( !file_exists( $licitacija ) )
+    $error = $error . "Datoteka " . $licitacija . " ne postoji. ";
+else
+{
+    if( !is_readable( $licitacija ) )
+        $error = $error . "Ne mogu čitati iz datoteke " . $licitacija . ". ";
+
+    if( !is_writable( $licitacija ) )
+        $error = $error . "Ne mogu pisati u datoteku " . $licitacija . ". ";
+} 
 
 if( $error !== "" )
 {
@@ -60,6 +72,7 @@ while( $currentmodif <= $lastmodif )
 // Kad dođemo do ovdje, znamo da je datoteka bila promijenjena.
 // Spremi njen sadržaj u $response[ 'msg' ] i vrijeme zadnje promjene u $response[ 'timestamp' ]
 $response = array();
+$response[ 'licitacija' ] = file_get_contents( $licitacija);
 $response[ 'msg' ]       = file_get_contents( $filename );
 $response[ 'timestamp' ] = $currentmodif;
 
