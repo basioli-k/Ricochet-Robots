@@ -60,15 +60,11 @@ class Field{
 			if($this->robot !== NULL)
 			{
 				echo "<i class=\"fas fa-football-ball \" style=\"display:none;\"></i>";
-				echo "<span class=\"fa-stack\">";
-				echo "<i class=\"fas fa-robot fa-stack-1x\" style = \"background-color:".$this->robot."\"></i>";
-				echo "</span>";
+				echo "<i class=\"fas fa-robot \" style = \"background-color:".$this->robot."\"></i>";
 			}
 			elseif($this->goal !== NULL)
 			{
-				echo "<span class=\"fa-stack\">";
-				echo "<i class=\"fa-stack-1x ".$this->goal[1]."\" style = \"color:".$this->goal[0]."\"></i>";
-				echo "</span>";
+				echo "<i class=\"".$this->goal[1]."\" style = \"color:".$this->goal[0]."\"></i>";
 			}
 			else
 			{

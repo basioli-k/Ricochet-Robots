@@ -7,58 +7,45 @@
     margin-left: 25%;
 }
 
-td.board_field{
-    width: 40px;
-    height: 35px;
-    max-width: 40px;
-    max-height: 35px;
+.board td{
     border: 1.5px solid black;
- }
-
-td.robot_field{
+    height: 40px;
     width: 40px;
-    height: 35px;
-    max-width: 40px;
-    max-height: 35px;
-    border: 1.5px solid black;
- }
-
-i{
-    vertical-align: middle;
-    max-width: 40px;
-    max-height: 35px;
+    text-align: center;
+    padding: 0;
 }
+
+.fa{
+    text-align: center;
+}
+
 
 .fa-football-ball{
     color: rgb(214, 200, 200);
 }
 
-.fa-stack{
-    font-size: 0.7em;
-}
-
 .fa-robot{
-    font-size: 1.5em;
+    font-size: 1em;
 }
 
-.fa-moon{
-    font-size: 1.7em;
+ .fa-moon{
+    font-size: 1em;
 }
 
 .fa-meteor{
-    font-size: 1.7em;
+    font-size: 1em;
 }
 
 .fa-cogs{
-    font-size: 1.7em;
+    font-size: 1em;
 }
 
 .fa-battle-net{
-    font-size: 1.7em;
+    font-size: 1em;
 }
 
 .fa-star{
-    font-size: 1.7em;
+    font-size: 1em;
 }
 
 /* Main menu */
