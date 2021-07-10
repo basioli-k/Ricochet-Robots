@@ -57,10 +57,10 @@ function waitConfirmation(){
 }
 
 function allowRobotMovement(){
-    var robot = null;
+    var rbt = null;
     $( ".robot_field" ).each(function(index) {
         $(this).on("click", () => {
-            robot = $(this).css('background-color');
+            rbt = $(this).css('background-color');
         });
     });
     document.onkeydown = function(event) {
@@ -83,20 +83,25 @@ function allowRobotMovement(){
                 break;
         }
 
-        if(robot != null && direction != null){
-            var rgb = robot;
+        if(rbt != null && direction != null){
+            var rgb = rbt;
+
             rgb = rgb.replace(/[^\d,]/g, '').split(',');
-            console.log(rgb);
 
             const hexColor = rgbToHex(rgb[0], rgb[1], rgb[2]);
             
-            data = {
-                username: getUsername(),
-                robot: hexColor,
-                direction: direction
-            };
+            
+            // ovo ti vraća boolean je li se robot pomaknuo ili 
+            // nije
+            move_robot(hexColor, direction);
 
-            move_robot(data);
+            // OVO JE POTREBNO OPET POZVATI JER SE SADA MOZDA DOGODILA
+            // PROMJENA POZICIJE I TO POLJE VIŠE NIJE BINDANO
+            $( ".robot_field" ).each(function(index) {
+                $(this).on("click", () => {
+                    rbt = $(this).css('background-color');
+                });
+            });
         }
 
 
@@ -122,7 +127,7 @@ function waitOnHost(){
                 $( "#btn" ).on( "click", posaljiPoruku );
 
                 cekajPoruku();
-
+                allowRobotMovement();
                 igraj("licitacija");
 
                 // igraj("licitacija");

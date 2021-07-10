@@ -31,7 +31,7 @@ class Field{
 	}
 
 	function draw_field($i, $j){
-		echo "<td row=" . $i . "col=" . $j . " class=\"";
+		echo "<td row=\"" . $i . "\" col=\"" . $j . "\" class=\"";
 
 		if($this->robot !== NULL && $this->robot !== BLACK)
 		{
@@ -59,6 +59,7 @@ class Field{
 		if($this->robot !== BLACK){
 			if($this->robot !== NULL)
 			{
+				echo "<i class=\"fas fa-football-ball \" style=\"display:none;\"></i>";
 				echo "<span class=\"fa-stack\">";
 				echo "<i class=\"fas fa-robot fa-stack-1x\" style = \"background-color:".$this->robot."\"></i>";
 				echo "</span>";
