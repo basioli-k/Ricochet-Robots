@@ -1,4 +1,4 @@
-<?php 
+<?php
 function sendJSONandExit( $message )
 {
     // Kao izlaz skripte pošalji $message u JSON formatu i prekini izvođenje.
@@ -8,7 +8,8 @@ function sendJSONandExit( $message )
     exit( 0 );
 }
 
-$filename  = "ready.log";
+
+$filename  = 'timer.log';
 
 $error = "";
 if( !file_exists( $filename ) )
@@ -20,9 +21,8 @@ else
 
     if( !is_writable( $filename ) )
         $error = $error . "Ne mogu pisati u datoteku " . $filename . ". ";
-} 
+}
 
-// echo "prije errora " . $error;
 if( $error !== "" )
 {
     $response = [];
@@ -31,7 +31,29 @@ if( $error !== "" )
     sendJSONandExit( $response );
 }
 
-file_put_contents($filename, "1");
-$response = [];
+$msg = file_get_contents($filename);
+if ($msg === "") {
+    $msg = -1;
+}
+else {
+    $msg = (int)file_get_contents($filename);
+}
+
+while($msg === -1 || $msg  >= time())
+{
+
+    usleep( 10000 ); // odspavaj 10ms da CPU malo odmori :)
+    clearstatcache();
+    $msg = file_get_contents($filename);
+    if ($msg === "") {
+        $msg = -1;
+    }
+    else {
+        $msg = (int)file_get_contents($filename);
+    }
+}
+
+$response = []; 
 sendJSONandExit( $response );
+
 ?>

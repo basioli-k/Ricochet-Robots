@@ -24,6 +24,8 @@
     <br />
 </form>
 
+<div id="ranking"></div>
+
 <form action=" <?php echo __SITE_URL ?>/index.php" method="get">
     <input type="submit" value="Back"> 
 </form>
