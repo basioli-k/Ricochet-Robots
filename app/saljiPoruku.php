@@ -29,6 +29,19 @@ else
         $error = $error . "Ne mogu pisati u datoteku " . $filename . ". ";
 } 
 
+$licitacija = 'licitacija.log';
+
+if( !file_exists( $licitacija ) )
+    $error = $error . "Datoteka " . $licitacija . " ne postoji. ";
+else
+{
+    if( !is_readable( $licitacija ) )
+        $error = $error . "Ne mogu čitati iz datoteke " . $licitacija . ". ";
+
+    if( !is_writable( $licitacija ) )
+        $error = $error . "Ne mogu pisati u datoteku " . $licitacija . ". ";
+} 
+
 
 if( $error !== "" )
 {
@@ -48,9 +61,20 @@ if( $msg != '' && $ime != '' ) // nama će ime uvijek biti valjano
     // Spremi poruku u datoteku (ovo će prebrisati njen sadržaj)
     file_put_contents( $filename, '<b>' . $ime . '</b>: ' . $msg );
 
+    $poruka = '';
+    // ako je poslan broj spremi ga u licitiranje
+    if (preg_match('/^[1-9][0-9]*$/', $msg)) {
+        file_put_contents( $licitacija, strval(time()) . ':' . $ime . ':' . $msg . ',', FILE_APPEND );
+        $poruka = 'spremljeno u licitaciju';
+    } 
+    else {
+        $poruka = 'niste poslali pozitivan broj';
+    }
+
     // Iako klijent zapravo ne treba odgovor kada šalje novu poruku,
     // možemo mu svejeno nešto odgovoriti da olakšamo debugiranje na strani klijenta.
     $response = [];
+    $response[ 'poruka' ] = $poruka;
     $response[ 'ime' ] = $ime;
     $response[ 'msg' ] = $msg;
     sendJSONandExit( $response );
