@@ -28,7 +28,7 @@ class Game{
 			<tr>
 			<?php
 			for($j = 0 ; $j < count($board[$i]); $j++){
-				$board[$i][$j]->draw_field();
+				$board[$i][$j]->draw_field($i, $j);
 			}
 			?>
 			</tr>

@@ -30,8 +30,8 @@ class Field{
 		$this->robot = $robot;
 	}
 
-	function draw_field(){
-		echo "<td class=\"";
+	function draw_field($i, $j){
+		echo "<td row=" . $i . "col=" . $j . " class=\"";
 
 		if($this->robot !== NULL && $this->robot !== BLACK)
 		{
