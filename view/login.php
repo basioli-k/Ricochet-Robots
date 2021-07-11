@@ -17,7 +17,8 @@
 
 <?php
 if(isset($warning) && strlen($warning) > 0)
-    echo "<div>" . $warning . "</div>";
+    echo '<br>';
+    echo '<div><b>' . $warning . "</b></div>";
 ?>
 </div>
 </div>
