@@ -7,8 +7,12 @@ require_once 'app/init.php';
 
 session_start();
 
+// echo preg_match("#^register/confirmation&sequence=[a-z]{20}$#", $_GET['rt'] . "&sequence=" . $_GET['sequence']); 
 
-if ( isset( $_GET["rt"] ) )
+// echo "<br> " . $_GET['rt'] . "&sequence=" . $_GET['sequence']." <br>";
+if (isset( $_GET["rt"] ) && (isset($_SESSION['player']) || $_GET["rt"] === "login/verifyLogin" 
+    || $_GET["rt"] === "register" || $_GET["rt"] === "register/newUser" || 
+    ( isset($_GET['sequence']) && preg_match("/^register\/confirmation&sequence=[a-z]{20}$/", $_GET['rt'] . "&sequence=" . $_GET['sequence']) ) ))
     $route = $_GET["rt"];
 else 
     $route = "login";
