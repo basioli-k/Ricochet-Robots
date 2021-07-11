@@ -15,6 +15,10 @@
     padding: 0;
 }
 
+.robot_field{
+    cursor: pointer;
+}
+
 .fa{
     text-align: center;
 }
