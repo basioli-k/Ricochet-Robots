@@ -9,6 +9,7 @@
 <br>
 
 <div id="ranking"></div>
+<div id="timer"></div>
 
 <form action=" <?php echo __SITE_URL ?>/index.php" method="get">
     <input type="submit" value="Back"> 
@@ -16,5 +17,6 @@
 
 <script src= <?php echo __SITE_URL . "/js/robot_movement.js"; ?>></script>
 <script src= <?php echo __SITE_URL . "/js/gameplay.js"; ?>></script>
+<script src= <?php echo __SITE_URL . "/js/utils.js"; ?>></script>
 
 <?php require_once __SITE_PATH . "/view/_footer.php";?>

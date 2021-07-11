@@ -1,4 +1,4 @@
-var ime = getUsername(), timestamp = 0, countdown = 0, winner = "", faza_igre = 0;
+var ime = getUsername(), timestampPoruka = 0, timestampPotez = 0, countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 20;
 
 $(document).ready(function () {
     $.ajax(
@@ -8,7 +8,6 @@ $(document).ready(function () {
             dataType: "json",
             // async: false,
             beforeSend: function(){
-                console.log("prije ajaxa skrivam body");
                 $('body').hide();
             },
             success: function( data ) 
@@ -43,7 +42,7 @@ function postaviTimer(time) {
             {
                 console.log(xhr);
                 if( status !== null )
-                    console.log( "FAIL (" + status + ")" );
+                    console.log( "FAIL postaviTimer (" + status + ")" );
             }
     });
 
@@ -52,11 +51,11 @@ function postaviTimer(time) {
 function waitConfirmation(){
     while(!confirm("Press okay to start game!")){
     }
-    postaviTimer(0);
     waitOnHost();
+    postaviTimer(0);
 }
 
-function allowRobotMovement(){
+function allowRobotMovement(brojPoteza){
     var rbt = null;
     $( ".robot_field" ).each(function(index) {
         $(this).on("click", () => {
@@ -90,11 +89,38 @@ function allowRobotMovement(){
 
             const hexColor = rgbToHex(rgb[0], rgb[1], rgb[2]);
             
-            
-            // ovo ti vraća boolean je li se robot pomaknuo ili 
-            // nije
-            move_robot(hexColor, direction);
+            console.log("Pomakni" + hexColor + "robota u smjeru " + direction);
+            if (move_robot(hexColor, direction)) {
+                $.ajax({
+                    url: './app/posaljiPotez.php',
+                    type: 'GET',
+                    data: {
+                        potez: povuceniPotezi,
+                        color: hexColor,
+                        dir: direction,
+                    },
+                    success: function (data) {
+                        if (typeof(data.error) !== "undefined") 
+                            console.log("Greska:: posaljiPotez:: " + data.error);
+                        povuceniPotezi++;
+                        if (povuceniPotezi === brojPoteza) {
+                            disallowRobotMovement();
+                            console.log("Potezi robota onemoguceni");
+                            if (dobroRijeseno())
+                                licitacija();
+                            else
+                                pomicanje();
+                        }
+                    },
+                    error: function( xhr, status ) {
+                        if( status !== null )
+                            console.log( "FAIL (" + status + ")" );
+                    }
+                });
 
+            }
+
+            // Da li je proslo polje ODBINDANO??
             // OVO JE POTREBNO OPET POZVATI JER SE SADA MOZDA DOGODILA
             // PROMJENA POZICIJE I TO POLJE VIŠE NIJE BINDANO
             $( ".robot_field" ).each(function(index) {
@@ -109,7 +135,20 @@ function allowRobotMovement(){
     
 }
 
+// Da li je trenutacni "token" dobro rijesen (ako je onda idemo u fazu licitacija, ako nije onda sljedeci igrac pokusava dati rijesenje).
+// Treba slozit.
+function dobroRijeseno() {
+    return true;
+}
+
+function disallowRobotMovement() {
+    $( ".robot_field" ).each(function(index) {
+        $(this).off();
+    })
+}
+
 function waitOnHost(){
+    console.log("cekam hosta da pokrene igru");
     $.ajax(
         {
             url: "./app/cekajTimer.php",
@@ -119,21 +158,18 @@ function waitOnHost(){
             {
                 // Sljedeća naredba ne treba: kako je dataType="json", data je već konvertiran iz stringa u objekt.
                 // var data = JSON.parse( data );
-                console.log( "HOST je ready" + JSON.stringify( data ) );
+                console.log("HOST je ready");
 
+                if (typeof(data.error) !== "undefined") {
+                    console.log("Greska:: cekajTimer.php:: " + data.error);
+                }
+                else {
+                    $('body').show();
+                    $( "#btn" ).on( "click", posaljiPoruku );
 
-
-                $('body').show();
-                $( "#btn" ).on( "click", posaljiPoruku );
-
-                cekajPoruku();
-                allowRobotMovement();
-                igraj("licitacija");
-
-                // igraj("licitacija");
-                // TODO ovo ovdje je sada tu cisto da pokazujemo kako stvari idu
-                // inace se ova funkcija poziva samo igracu koji trenutno pokazuje rjesenje
-
+                    cekajPoruku();
+                    licitacija();
+                }
             },
             error: function( xhr, status )
             {
@@ -147,22 +183,39 @@ function waitOnHost(){
         } );
 }
 
+// Sortira i sreduje licitaciju.
 function srediLicitaciju(licitacija) {
-    console.log(licitacija);
+    // console.log(licitacija);
     var glasovi = licitacija.split(',');
     var glasovi_sort = new Array(glasovi.length - 1);
     for (var i = 0; i < glasovi.length - 1; i++) {
         glasovi_sort[i] = glasovi[i].split(':'); 
     }
     
-    // Ovu funkciju bi trebalo malo prilagoditi pravilima igre.
     glasovi_sort.sort(function(a, b) {
-        var a2 = parseInt(a[2]); var a0 = parseInt(a[0]);
-        var b2 = parseInt(b[2]); var b0 = parseInt(b[0]);
+        var a1 = a[1]; var a0 = parseInt(a[0]);
+        var b1 = b[1]; var b0 = parseInt(b[0]);
+        if (a1 === b1) return b0 - a0;
+        else if (a1 > b1) return 1;
+        else return -1;
+    })
+    var sredeni_glasovi = [];
+    for (var i = 0; i < glasovi_sort.length; i++) {
+        if (i === 0 || glasovi_sort[i][1] !== sredeni_glasovi[sredeni_glasovi.length - 1][1]) {
+            sredeni_glasovi.push(glasovi_sort[i]);
+        }
+    }
+    
+    sredeni_glasovi.sort( function(a, b) {
+        var a0 = parseInt(a[0]);
+        var a2 = parseInt(a[2]);
+        var b0 = parseInt(b[0]);
+        var b2 = parseInt(b[2]);
+
         if (a2 !== b2) return a2 - b2;
         return a0 - b0;
     })
-    return glasovi_sort;
+    return sredeni_glasovi;
 }
 
 function dajLicitaciju() {
@@ -174,33 +227,154 @@ function dajLicitaciju() {
         async: false,
         success: function(data) {
 
-            console.log(licitacija);
+            // console.log(licitacija);
             licitacija = srediLicitaciju(data.licitacija);
         }
     })
     return licitacija;
 }
 
-function igraj(faza_igre) {
+function povuciPoteze(brojPoteza) {
+    allowRobotMovement(brojPoteza);
+    console.log("dozvoljeni potezi robota");
+}
 
-    if (faza_igre === "licitacija") {
-        console.log("licitacija");
-        postaviTimer(60);
-        $.ajax({
-            url: "./app/cekajTimer.php",
-            type: "GET",
-            success: function (data) {
-                igraj("pomicanje");
+function cekajPotez(brojPoteza) {
+    $.ajax({
+        url: './app/cekajPotez.php',
+        type: "GET",
+        data: {
+            timestamp: timestampPotez,
+
+            cache: new Date().getTime()
+        },
+        success: function(data) {
+            if( typeof( data.error ) !== "undefined" ) {
+                // Ipak je došlo do greške!
+                console.log( "cekajPotez :: success :: server javio grešku " + data.error );
             }
-        })
+            else {
+                timestampPotez = data.timestamp;
+                console.log("primljeni su potezi za boju: " + data.hexColor + " i smjer: " + data.direction);
+                move_robot(data.hexColor, data.direction);
+                povuceniPotezi++;
+                if (povuceniPotezi < brojPoteza) {
+                    cekajPotez(brojPoteza);
+                }
+                else if (povuceniPotezi === brojPoteza) {
+                    if (dobroRijeseno())
+                        licitacija();
+                    else
+                        pomicanje();
+                }
+            }
+        },
+        error: function(xhr, status) {
+            if (status === "timeout") 
+                cekajPotez();
+            else if( status !== null )
+                console.log( "FAIL cekajPoteze.php (" + status + ")" );
+        }
+    })
+}
+
+function licitacija() {
+    console.log("licitacija");
+    
+    // brisanje chata i licitacija.
+    $.ajax({
+        url: "./app/ocistiLog.php",
+        type: "GET",
+        data: {
+            filenames: "chat.log,licitacija.log"
+        },
+        // Moram pocistit prije nego ucitam sljedece podatke.
+        async: false,
+        success: function (data) {
+            if (typeof(data.error) !== "undefined") 
+                console.log("Greska:: ocistiPoruke.php:: " + data.error);
+            else
+                console.log("Poruke uspjesno pociscene");
+        },
+        error: function(xhr, status) {
+            console.log(xhr);
+        }
+    })
+    $("#chat").empty();
+    $("#ranking").empty();
+
+    $("#btn").prop('disabled', false);
+
+    // Odbrojavanje sekundti.
+    postaviTimer(vrijemeZaLicitaciju);
+    $("#timer").html(vrijemeZaLicitaciju.toString());
+    timer = setInterval(function () {
+        preostalo = parseInt($("#timer").html());
+        if (preostalo > 0)
+            $("#timer").html((preostalo - 1).toString());
+    }, 1000);
+
+    $.ajax({
+        url: "./app/cekajTimer.php",
+        type: "GET",
+        success: function (data) {
+            if (typeof(data.error) !== "undefined") {
+                console.log("Greska:: cekajTimer.php:: " + data.error);
+            }
+            else {
+                odigrali = [];
+                clearInterval(timer);
+                $("#timer").html("0");
+                $("#btn").prop('disabled', true);
+                pomicanje();
+            }
+        }
+    })
+}
+
+function pomicanje() {
+    console.log("pomicanje");
+    timestampPotez = Math.round(Date.now() / 1000);
+    $.ajax({
+        url: "./app/ocistiLog.php",
+        type: "GET",
+        data: {
+            filenames: "potezi.log"
+        },
+        // Moram pocistit prije nego ucitam sljedece podatke.
+        async: false,
+        success: function (data) {
+            if (typeof(data.error) !== "undefined") 
+                console.log("Greska:: ocistiPoteze.php:: " + data.error);
+            else
+                console.log("Potezi uspjesno pociscene");
+        },
+        error: function(xhr, status) {
+            console.log(xhr);
+        }
+    })
+    var ranking = dajLicitaciju();
+    var nekoJeIgral = false
+    for (var i = 0; i < ranking.length; i++ ) {
+        console.log(ranking[i][1]);
+        if (odigrali.includes(ranking[i][1])) 
+            continue;
+        console.log(ranking[i][1] + " nije jos igrao.");
+        odigrali.push(ranking[i][1]);
+        nekoJeIgral = true;
+
+        povuceniPotezi = 0;
+        if (ime === ranking[i][1]) {
+            console.log("povlacim " + ranking[i][2] + " poteza");
+            povuciPoteze(parseInt(ranking[i][2]));
+        }
+        else {
+            console.log("cekam poteze");
+            cekajPotez(parseInt(ranking[i][2]));
+        }
+        break;
     }
-    else if (faza_igre === "pomicanje") {
-        var licitacija = dajLicitaciju();
-        // popis onih koji su vec pokusali napraviti svoj potez.
-        var odigrali = [];
-        console.log(licitacija[0][1]);
-        igraj("licitacija");
-    }
+    if (!nekoJeIgral) licitacija();
 }
 
 function cekajPoruku() 
@@ -213,7 +387,7 @@ function cekajPoruku()
         data:
         { 
             // Timestamp = vrijeme kad smo zadnji put dobili poruke sa servera.
-            timestamp: timestamp, 
+            timestamp: timestampPoruka, 
 
             // cache = svaki put šaljemo i trenutno vrijeme tako da browser ne pročita iz 
             //         cache-a odgovor servera, nego ga zaista ide kontaktirati.
@@ -223,11 +397,6 @@ function cekajPoruku()
         dataType: "json",
         success: function( data ) 
         {
-            // Sljedeća naredba ne treba: kako je dataType="json", data je već konvertiran iz stringa u objekt.
-            // var data = JSON.parse( data );
-
-            console.log( "cekajPoruku :: success :: data = " + JSON.stringify( data ) );
-
             // Da li je u poruci definirano svojstvo error?
             // Uoči: naša PHP aplikacija će dodavati svojstvo error ako detektira neku grešku.
             if( typeof( data.error ) !== "undefined" )
@@ -239,7 +408,7 @@ function cekajPoruku()
             {
                 // Ako nema greške, pročitaj poruku i dodaj ju u div.
                 $("#chat").append( "<div>" + decodeURI( data.msg ) + "</div>" );
-                timestamp = data.timestamp;
+                timestampPoruka = data.timestamp;
             
                 var licitacija = srediLicitaciju(data.licitacija);
                 $("#ranking").empty();

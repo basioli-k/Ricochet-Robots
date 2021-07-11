@@ -60,13 +60,15 @@ $lastmodif    = isset( $_GET['timestamp'] ) ? $_GET['timestamp'] : 0;
 
 // Otkrij kad je zadnji put bio promijenjena datoteka u kojoj je spremljena zadnja poruka.
 $currentmodif = filemtime( $filename );
+$msg = file_get_contents($filename);
 
 // Petlja koja se vrti sve dok se datoteka ne promijeni
-while( $currentmodif <= $lastmodif )
+while( $currentmodif <= $lastmodif || $msg === "")
 {
     usleep( 10000 ); // odspavaj 10ms da CPU malo odmori :)
     clearstatcache();
     $currentmodif = filemtime( $filename ); // ponovno dohvati vrijeme zadnje promjene datoteke
+    $msg = file_get_contents($filename);
 }
 
 // Kad dođemo do ovdje, znamo da je datoteka bila promijenjena.
