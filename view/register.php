@@ -18,11 +18,14 @@
 <form action=" <?php echo __SITE_URL ?>/index.php" method="get">
     <button class="button" value="Back">Back</button>
 </form>
-</div>
-</div>
+
 
 <?php
 if(isset($warning) && strlen($warning) > 0)
-    echo "<div>" . $warning . "</div>";
+    echo '<br>';
+    echo '<div><b>' . $warning . "</b></div>";
 ?>
+</div>
+</div>
+
 <?php require_once __SITE_PATH . "/view" . '/_footer.php'; ?>
