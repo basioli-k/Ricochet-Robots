@@ -58,9 +58,6 @@ function move_robot(robot, direction){
     next.attr("class", "robot_field");
 
     let robot_html = $(robot_el).children(":visible").get(0).outerHTML;
-    
-    console.log("html prethodnog polja", robot_html);
-    console.log("djeca", $(robot_el).children());
 
     $(robot_el).children(":visible").remove();
     $(robot_el).children().show();
