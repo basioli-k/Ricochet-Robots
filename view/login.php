@@ -14,11 +14,13 @@
     <button type="submit" value="Register" class="button">Register</button>
 </form>
 <br>
-
 <?php
-if(isset($warning) && strlen($warning) > 0)
-    echo '<br>';
-    echo '<div><b>' . $warning . "</b></div>";
+if(isset($warning))
+    if(strlen($warning) > 0)
+    {
+        echo "<br>";
+        echo "<div><b>" . $warning . "<b/></div>";
+    }
 ?>
 </div>
 </div>
