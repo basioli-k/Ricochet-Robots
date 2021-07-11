@@ -8,7 +8,7 @@ require_once 'app/init.php';
 session_start();
 
 
-if ( isset( $_GET["rt"] ) )
+if ( isset($_SESSION['player']) && isset( $_GET["rt"] ) )
     $route = $_GET["rt"];
 else 
     $route = "login";
