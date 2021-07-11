@@ -14,12 +14,11 @@
     <button type="submit" value="Register" class="button">Register</button>
 </form>
 <br>
-</div>
-</div>
 
 <?php
 if(isset($warning) && strlen($warning) > 0)
     echo "<div>" . $warning . "</div>";
 ?>
-
+</div>
+</div>
 <?php require_once __SITE_PATH . "/view" . '/_footer.php'; ?>
