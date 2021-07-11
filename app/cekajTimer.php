@@ -54,6 +54,7 @@ while($msg === -1 || $msg  >= time())
 }
 
 $response = []; 
+$response[ 'time' ] = $msg; 
 sendJSONandExit( $response );
 
 ?>
