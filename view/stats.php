@@ -1,27 +1,15 @@
 
 <?php require_once  __SITE_PATH . "/view/_header.php";?>
 
+<div class="wrapper">
+<div class="container">
+<h1>Stats</h1>
 <form action="<?php echo __SITE_URL; ?>/index.php?rt=stats" method="post">
 
-<!-- <ul class="radio_stat">
-    <li class="radio_stat_element">
-        <label for="sort_by"> Games won </label>
-        <input type="radio" name="sort_by" value="games_won" checked>
-    </li>
-    <li class="radio_stat_element">
-    <label for="sort_by"> Games played </label>
-        <input type="radio" name="sort_by" value="games_played">   
-    </li>
-    <li class="radio_stat_element">
-        <label for="sort_by"> Tokens won </label>
-        <input type="radio" name="sort_by" value="tokens_won">
-    </li>
-</ul>
-<input type="submit" value="Sort"> -->
 <div class="btn_group">
-    <button name="btn_stats" class="btn_stats" value="games_won">Games won</button>
-    <button name="btn_stats" class="btn_stats" value="games_played">Games played</button>
-    <button name="btn_stats" class="btn_stats" value="tokens_won">Tokens won</button>
+    <button name="btn_stats" class="button" value="games_won">Games won</button>
+    <button name="btn_stats" class="button" value="games_played">Games played</button>
+    <button name="btn_stats" class="button" value="tokens_won">Tokens won</button>
 </div>
 </form>
 <br>
@@ -38,8 +26,10 @@
 </table>
 <br>
 <form action=" <?php echo __SITE_URL ?>/index.php" method="get">
-    <button class="btn_stats" id="back" value="Back">Back</button>
+    <button  class="button" value="Back">Back</button>
 </form>
+</div>
+</div>
 
 
 <?php require_once __SITE_PATH . "/view/_footer.php";?>
