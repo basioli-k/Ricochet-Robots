@@ -1,7 +1,8 @@
-var ime = getUsername(), timestampPoruka = 0, timestampPotez = 0, countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 20;
+var ime = getUsername(), timestampPoruka = 0, timestampPotez = 0;
+var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 20;
 var cilj = {
-    znak: null,
-    boja: null,
+    znak: null, //"fas fa-star",  OSTAVLJAM TI ZAKOMENTIRANO DA VIDIS KAKO CE IZGLEDAT, OCEKUJEM fas razmak znak
+    boja: null//"#0000ff",
 };
 
 $(document).ready(function () {
@@ -155,7 +156,21 @@ function allowRobotMovement(brojPoteza){
 // Da li je trenutacni "token" dobro rijesen (ako je onda idemo u fazu licitacija, ako nije onda sljedeci igrac pokusava dati rijesenje).
 // Treba slozit.
 function dobroRijeseno() {
-    return false;
+    if (cilj.znak === null || cilj.boja === null)
+        return false
+    
+    let class_name = "." + cilj.znak.replaceAll(" ", ".");
+
+    let target_field = $(class_name).filter( function (){ 
+        
+        let color = $(this).css("color").replace(/[^\d,]/g, '').split(',');
+
+        return rgbToHex(color[0], color[1], color[2]) === cilj.boja;
+    }).get(0);
+
+    let parent = $(target_field).parent().css("background-color").replace(/[^\d,]/g, '').split(',');
+
+    return rgbToHex(parent[0], parent[1], parent[2]) === cilj.boja;
 }
 
 function disallowRobotMovement() {
