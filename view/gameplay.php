@@ -1,22 +1,31 @@
 <?php require_once  __SITE_PATH . "/view/_header.php";?>
+<div class=flex-container>
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
-<?php $_SESSION["game"]->draw_board() ?>
-<br>
-<aside id="chat_ranking">
-<h3>Chat</h3>
+<aside id="chat_ranking1">
+<h3 id=chat-heading>Chat</h3>
 <div id="chat"></div>
 <br />
-<h3>Licitations</h3>
-<div id="ranking"></div>
-<h3>Score</h3>
-<div id="result"></div>
 <input type="text" id="txt" class="input">
 <button id="btn" class="button">Send</button>
 <br><br>
 <div id="timer"></div>
 <br><br>
 </aside>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+<?php $_SESSION["game"]->draw_board() ?>
+<br>
+
+<aside id="chat_ranking2">
+<h3>Licitations</h3>
+<div id="ranking"></div>
+<h3>Score</h3>
+<div id="result"></div>
+<br><br>
+<div id="timer"></div>
+<br><br>
+</aside>
+</div>
 <form action=" <?php echo __SITE_URL ?>/index.php" method="get">
     <input type="submit" value="Back" id="gameplay_button" class="button"> 
 </form>
