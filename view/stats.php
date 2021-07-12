@@ -12,7 +12,7 @@
     <button name="btn_stats" class="button" value="tokens_won">Tokens won</button>
 </div>
 </form>
-<br>
+<br><br>
 <table class= "stat_table">
     <tr class="stat_row">
         <th class="stat_row_head"> Username </th>
