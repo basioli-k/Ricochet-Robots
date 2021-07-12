@@ -7,7 +7,7 @@ class Game{
 							array(BLUE, STAR), array(BLUE, PLANET), array(BLUE, GEAR), array(BLUE, MOON),
 							array(GREEN, STAR), array(GREEN, PLANET), array(GREEN, GEAR), array(GREEN, MOON),
 							array(YELLOW, STAR), array(YELLOW, PLANET), array(YELLOW, GEAR), array(YELLOW, MOON),
-							array(BLACK, VORTEX));
+							array(PURPLE, VORTEX));
 
 	function __construct($board, $players){
 		$this->board = $board;

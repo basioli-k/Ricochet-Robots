@@ -1,8 +1,5 @@
 <?php
-/*
-    Ova skripta nam služi i za spremanje novih poruka koje klijent šalje
-    i za slanje poruka klijentu koje je netko drugi napisao.
-*/
+
 
 function sendJSONandExit( $message )
 {
