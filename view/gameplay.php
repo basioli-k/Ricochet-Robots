@@ -7,12 +7,12 @@
 <h3>Chat</h3>
 <div id="chat"></div>
 <br />
-<h3>Licitation</h3>
+<h3>Licitations</h3>
 <div id="ranking"></div>
-<h3>Result</h3>
+<h3>Score</h3>
 <div id="result"></div>
 <input type="text" id="txt" class="input">
-<button id="btn" class="button">Pošalji</button>
+<button id="btn" class="button">Send</button>
 <br><br>
 <div id="timer"></div>
 <br><br>
