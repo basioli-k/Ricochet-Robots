@@ -32,10 +32,10 @@ class RegisterController{
         }
 
         //check if user exists
-        $user = Player::getPlayer( $_POST["username"] );
+        $user = Player::getPlayer( $_POST["username"], $_POST["email"] );
 
         if($user){
-            $warning = "A user with username ". $user->username . " already exists.";
+            $warning = "A user with username ". $user->username . " or email " . $user->email . " already exists.";
             require_once __SITE_PATH . "/view/register.php";
             exit();
         }

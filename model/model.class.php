@@ -78,7 +78,7 @@ abstract class Model {
         return $st->fetch();
     }
 
-    public static function where( $query_array )
+    public static function where( $query_array, $connective = "AND")
     {
         $db = DB::getConnection();
 
@@ -92,7 +92,7 @@ abstract class Model {
                 $first = false;
             }
             else
-                $query = $query . " AND " . $column . "=:" . $column;
+                $query = $query . " " . $connective . " " . $column . "=:" . $column;
                 
         }
         
