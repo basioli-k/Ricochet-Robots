@@ -10,7 +10,7 @@ def delete_log_content(path):
         elif not file ==".git" and ".log" in file:
             print(file)
             #prvo si ispisite da vidite da necete pobrisati nesto viska slucajno i onda odkomentirajte
-#            open(path + "/" + file, 'w').close()
+            # open(path + "/" + file, 'w').close()
 
     for folder in folders:
         delete_log_content(path + "/" + folder)

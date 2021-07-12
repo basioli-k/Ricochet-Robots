@@ -71,8 +71,8 @@ class Player extends Model{
 		return $steps; 
 	}
 
-	static function getPlayer($username) {
-		$players = Player::where(array("username" => $username));
+	static function getPlayer($username, $email) {
+		$players = Player::where(array("username" => $username, "email" => $email), "OR");
 		
 		if(!$players || !isset($players[0]))
 			return false;
