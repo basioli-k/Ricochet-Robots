@@ -106,6 +106,7 @@ function allowRobotMovement(brojPoteza){
                     success: function (data) {
                         if (typeof(data.error) !== "undefined") 
                             console.log("Greska:: posaljiPotez:: " + data.error);
+                        console.log("response of posaljiPoruku.php je: " + data.response);
                         povuceniPotezi++;
                         if (povuceniPotezi <= brojPoteza) {
                             if (dobroRijeseno()) {
@@ -130,6 +131,7 @@ function allowRobotMovement(brojPoteza){
                         */
                     },
                     error: function( xhr, status ) {
+                        console.log(xhr);
                         if( status !== null )
                             console.log( "FAIL (" + status + ")" );
                     }
@@ -282,6 +284,7 @@ function cekajPotez(brojPoteza) {
                 console.log("primljeni su potezi za boju: " + data.hexColor + " i smjer: " + data.direction);
                 move_robot(data.hexColor, data.direction);
                 povuceniPotezi++;
+                console.log("potez dobiven, povuceniPotezi:" + povuceniPotezi + ", brojPoteza: " + brojPoteza);
                 if (povuceniPotezi <= brojPoteza) {
                     if (dobroRijeseno()) {
                         // TODO: update rezultate.
@@ -291,7 +294,7 @@ function cekajPotez(brojPoteza) {
                         pomicanje();
                     }
                     else {
-                        cekajPotez();
+                        cekajPotez(brojPoteza);
                     } 
                 } 
                 /*
@@ -310,7 +313,7 @@ function cekajPotez(brojPoteza) {
         },
         error: function(xhr, status) {
             if (status === "timeout") 
-                cekajPotez();
+                cekajPotez(brojPoteza);
             else if( status !== null )
                 console.log( "FAIL cekajPoteze.php (" + status + ")" );
         }

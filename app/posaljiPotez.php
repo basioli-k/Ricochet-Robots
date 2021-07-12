@@ -42,8 +42,10 @@ $dir = isset( $_GET['dir'] ) ? $_GET['dir'] : '';
 
 if( $color != '' && $dir != '' && $potez != '') // nama će ime uvijek biti valjano
 {
+    $obrisano = 'nijeObrisano';
     if ($potez === '0') {
         file_put_contents( $filename, "");
+        $obrisano = 'jestObrisano';
     }
 
     // Spremi poruku u datoteku (ovo će prebrisati njen sadržaj)
@@ -52,6 +54,7 @@ if( $color != '' && $dir != '' && $potez != '') // nama će ime uvijek biti valj
     // Iako klijent zapravo ne treba odgovor kada šalje novu poruku,
     // možemo mu svejeno nešto odgovoriti da olakšamo debugiranje na strani klijenta.
     $response = [];
+    $response[ 'response' ] = "potezi su poslani" . $obrisano;
     sendJSONandExit( $response );
 }
 else
