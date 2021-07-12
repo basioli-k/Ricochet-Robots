@@ -9,6 +9,8 @@
 <br />
 <h3>Licitation</h3>
 <div id="ranking"></div>
+<h3>Result</h3>
+<div id="result"></div>
 <input type="text" id="txt" class="input">
 <button id="btn" class="button">Pošalji</button>
 <br><br>
