@@ -7,7 +7,15 @@ require_once 'app/init.php';
 
 session_start();
 
-if (isset( $_GET["rt"] ) && (isset($_SESSION['player']) || preg_match("/^(login|register)(.)*$/", $_GET["rt"]) ) )
+if (isset($_GET['rt']) && $_GET['rt'] === 'gameplay'){
+    clearstatcache();  //kaze internet da ovo treba ako se mijenja cesto file
+    if(filesize("./app/timer.log"))
+        $route = "mainMenu";
+    else 
+        $route = $_GET['rt'];
+
+}
+else if (isset( $_GET["rt"] ) && (isset($_SESSION['player']) || preg_match("/^(login|register)(.)*$/", $_GET["rt"]) ) )
     $route = $_GET["rt"];
 else 
     $route = "login";
