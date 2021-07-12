@@ -174,7 +174,6 @@ function waitOnHost(){
                             console.log($("btn"));
                         }
                     });
-
                     cekajPoruku();
                     licitacija();
                 }
