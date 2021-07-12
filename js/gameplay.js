@@ -1,4 +1,8 @@
 var ime = getUsername(), timestampPoruka = 0, timestampPotez = 0, countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 20;
+var cilj = {
+    znak: null,
+    boja: null,
+};
 
 $(document).ready(function () {
     $.ajax(
@@ -103,6 +107,18 @@ function allowRobotMovement(brojPoteza){
                         if (typeof(data.error) !== "undefined") 
                             console.log("Greska:: posaljiPotez:: " + data.error);
                         povuceniPotezi++;
+                        if (povuceniPotezi <= brojPoteza) {
+                            if (dobroRijeseno()) {
+                                disallowRobotMovement();
+                                // TODO: update rezultate.
+                                licitacija();
+                            }
+                            else if (povuceniPotezi === brojPoteza) {
+                                disallowRobotMovement();
+                                pomicanje();
+                            }
+                        } 
+                        /*
                         if (povuceniPotezi === brojPoteza) {
                             disallowRobotMovement();
                             console.log("Potezi robota onemoguceni");
@@ -111,6 +127,7 @@ function allowRobotMovement(brojPoteza){
                             else
                                 pomicanje();
                         }
+                        */
                     },
                     error: function( xhr, status ) {
                         if( status !== null )
@@ -138,7 +155,7 @@ function allowRobotMovement(brojPoteza){
 // Da li je trenutacni "token" dobro rijesen (ako je onda idemo u fazu licitacija, ako nije onda sljedeci igrac pokusava dati rijesenje).
 // Treba slozit.
 function dobroRijeseno() {
-    return true;
+    return false;
 }
 
 function disallowRobotMovement() {
@@ -265,15 +282,30 @@ function cekajPotez(brojPoteza) {
                 console.log("primljeni su potezi za boju: " + data.hexColor + " i smjer: " + data.direction);
                 move_robot(data.hexColor, data.direction);
                 povuceniPotezi++;
+                if (povuceniPotezi <= brojPoteza) {
+                    if (dobroRijeseno()) {
+                        // TODO: update rezultate.
+                        licitacija();
+                    }
+                    else if (povuceniPotezi === brojPoteza) {
+                        pomicanje();
+                    }
+                    else {
+                        cekajPotez();
+                    } 
+                } 
+                /*
                 if (povuceniPotezi < brojPoteza) {
                     cekajPotez(brojPoteza);
                 }
+                // TODO: mozda manje jednako.
                 else if (povuceniPotezi === brojPoteza) {
                     if (dobroRijeseno())
                         licitacija();
                     else
                         pomicanje();
                 }
+                */
             }
         },
         error: function(xhr, status) {
@@ -367,10 +399,6 @@ function pomicanje() {
         }
     })
     var ranking = dajLicitaciju();
-    if (ranking.length === 0) {
-        licitacija();
-        return;
-    }
     var nekoJeIgral = false
     for (var i = 0; i < ranking.length; i++ ) {
         console.log(ranking[i][1]);
