@@ -8,6 +8,9 @@ require_once 'app/init.php';
 session_start();
 
 if (isset($_GET['rt']) && $_GET['rt'] === 'gameplay'){
+    // TODO antonio ako se dogodi ovaj if filesize... onda ispisati warning 
+    // na main menu "game is in session" ili tako nesto
+    // vidi kako sam slozio warning u register i login controller i viewu
     clearstatcache();  //kaze internet da ovo treba ako se mijenja cesto file
     if(filesize("./app/timer.log"))
         $route = "mainMenu";
