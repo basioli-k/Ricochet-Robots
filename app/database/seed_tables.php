@@ -21,6 +21,7 @@ function seed_table_users()
 		$st->execute( array( 'username' => 'avirovic', 'password' => password_hash( 'REDACTED', PASSWORD_DEFAULT ), "email" => "player1@example.invalid" ) );
 		$st->execute( array( 'username' => 'basioli', 'password' => password_hash( 'REDACTED', PASSWORD_DEFAULT ), "email" => "player2@example.invalid") );
 		$st->execute( array( 'username' => 'duric', 'password' => password_hash( 'REDACTED', PASSWORD_DEFAULT ), "email" => "player3@example.invalid" ) );
+		$st->execute( array( 'username' => 'igrac', 'password' => password_hash( 'igrac', PASSWORD_DEFAULT ), "email" => "fake@mail.hr" ) );
 	}
 	catch( PDOException $e ) { exit( "PDO error [insert dz2_users]: " . $e->getMessage() ); }
 
