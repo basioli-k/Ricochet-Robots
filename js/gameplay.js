@@ -62,7 +62,7 @@ function allowRobotMovement(brojPoteza){
             rbt = $(this).css('background-color');
         });
     });
-    document.onkeydown = function(event) {
+    $(document).on("keydown", function(event) {
         let direction = null;
 
         switch (event.key){
@@ -131,7 +131,7 @@ function allowRobotMovement(brojPoteza){
         }
 
 
-    };
+    });
     
 }
 
@@ -144,7 +144,8 @@ function dobroRijeseno() {
 function disallowRobotMovement() {
     $( ".robot_field" ).each(function(index) {
         $(this).off();
-    })
+    });
+    $(document).off("keydown");
 }
 
 function waitOnHost(){
@@ -367,6 +368,10 @@ function pomicanje() {
         }
     })
     var ranking = dajLicitaciju();
+    if (ranking.length === 0) {
+        licitacija();
+        return;
+    }
     var nekoJeIgral = false
     for (var i = 0; i < ranking.length; i++ ) {
         console.log(ranking[i][1]);
