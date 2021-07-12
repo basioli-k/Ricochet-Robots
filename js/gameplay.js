@@ -311,8 +311,13 @@ function licitacija() {
     timer = setInterval(function () {
         preostalo = parseInt($("#timer").html());
         if (preostalo > 0)
+            {
             $("#timer").html((preostalo - 1).toString());
+            if (preostalo <= 6)
+                $("#timer").css("color","red")
+            }
     }, 1000);
+
 
     $.ajax({
         url: "./app/cekajTimer.php",
@@ -324,6 +329,7 @@ function licitacija() {
             else {
                 odigrali = [];
                 clearInterval(timer);
+                $("#timer").css("color","black")
                 $("#timer").html("0");
                 $("#btn").prop('disabled', true);
                 pomicanje();
