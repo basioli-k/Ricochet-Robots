@@ -8,7 +8,8 @@ html, body {
     border-collapse: collapse;
     text-align: center;
     float: left;
-    margin-left: 25%;
+    margin-left: 100px;
+    margin-right: 100px;
 }
 
 .board td{
@@ -108,26 +109,29 @@ html, body {
     cursor: pointer;
 }
 
-#back
-{
-    
-}
-
 .btn_stats:hover{
     background-color: rgb(160, 157, 157);
 }
 
 .stat_row_head{
-    border: 1.5px solid black;
-    background-color: darkgray;
-    color: black;
+    border: 1.5px solid #ddd;
+    background-color: blue;
+    color: white;
     min-width: 130px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    background-color: darkred;
 }
 
 .stat_row_data{
-    border: 1.5px solid black;
+    border: 1.5px solid #ddd;
+    padding: 8px;
+    text-align: center;
 }
 
+.stat_table tr:nth-child(even){background-color: #f2f2f2;;}
+
+.stat_table tr:hover {background-color: #ddd;}
 
 
 h1{
@@ -196,16 +200,19 @@ input::placeholder{
 }
 
 #chat{
-    height: 130px;
+    height: 400px;
+    width: 200px;
     border: 1.5px solid lightgray;
     border-radius: 20px;
     padding-left: 5px;
     padding-top: 5px;
     overflow: auto;
+    margin: 0;
 }
 
 #ranking{
-    height: 90px;
+    height: 150px;
+    width: 200px;
     border: 1.5px solid lightgray;
     border-radius: 20px;
     margin-bottom: 20px;
@@ -215,7 +222,8 @@ input::placeholder{
 }
 
 #result{
-    height: 90px;
+    height: 150px;
+    width: 200px;
     border: 1.5px solid lightgray;
     border-radius: 20px;
     margin-bottom: 20px;
@@ -229,9 +237,8 @@ input::placeholder{
     margin: 0%;
 }
 
-#chat_ranking{
-    float: left;
-    margin-left: 50px;
+#chat_ranking1{
+    margin-left: 50px; 
 }
 
 #gameplay_button{
@@ -249,13 +256,14 @@ h3{
 #timer{
     text-align: center;
     font-size: 150%;
+    padding-right: 50px;
 }
 
-#result{
-    height: 90px;
-    border: 1.5px solid lightgray;
-    border-radius: 20px;
-    margin-bottom: 20px;
-    padding-left: 5px;
-    padding-top: 5px;
+.flex-container {
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+#chat-heading{
+    padding-right: 50px;
 }

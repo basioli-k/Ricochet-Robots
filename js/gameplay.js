@@ -144,7 +144,7 @@ function dobroRijeseno() {
 function disallowRobotMovement() {
     $( ".robot_field" ).each(function(index) {
         $(this).off();
-    })
+    });
 }
 
 function waitOnHost(){
@@ -166,13 +166,6 @@ function waitOnHost(){
                 else {
                     $('body').show();
                     $( "#btn" ).on( "click", posaljiPoruku );
-                    $("#txt").keypress(function(event) {
-                        // console.log()
-                        if (event.keyCode === 13 && !$("#btn").prop('disabled')) {
-                            $("#btn").click();
-                            console.log($("btn"));
-                        }
-                    });
 
                     cekajPoruku();
                     licitacija();
@@ -312,7 +305,7 @@ function licitacija() {
 
     $("#btn").prop('disabled', false);
 
-    // Odbrojavanje sekundi.
+    // Odbrojavanje sekundti.
     postaviTimer(vrijemeZaLicitaciju);
     $("#timer").html(vrijemeZaLicitaciju.toString());
     timer = setInterval(function () {
