@@ -1,5 +1,10 @@
 <?php
 
+define( '__SITE_PATH', realpath( dirname( __FILE__ ) ) . "/.." );
+define( '__SITE_URL', dirname( $_SERVER['PHP_SELF'] ) . "/.." );
+
+require_once './init.php';
+
 $filename1 = 'rezultati.log';
 $filename2 = '../controller/usernames.log';
 
@@ -38,6 +43,16 @@ for ($i = 0 ; $i < count($polje) ; $i++){
 
 print_r($polje);
 
+for($i = 0; $i < count($polje) ; $i++){
+    $igrac = Player::getPlayer($polje[$i]["ime"]);
+    
+    $igrac->games_played = (int) $igrac->games_played + 1;
+    $igrac->tokens_won = (int) $igrac->tokens_won + $polje[$i]["rezultat"];
+    if ($polje[$i]["najbolji"]){
+        $igrac->games_won =  (int) $igrac->games_won + 1;
+    }
+    $igrac->update();
+}
 
 
 ?>
