@@ -13,6 +13,7 @@ $(document).ready(function () {
             dataType: "json",
             // async: false,
             beforeSend: function(){
+                $('<p id="par"><b>Waiting for more players!<b></p>').insertBefore('body');
                 $('body').hide();
             },
             success: function( data ) 
@@ -214,6 +215,7 @@ function waitOnHost(){
                     console.log("Greska:: cekajTimer.php:: " + data.error);
                 }
                 else {
+                    $('#par').remove();
                     $('body').show();
                     $( "#btn" ).on( "click", posaljiPoruku );
                     $("#txt").keypress(function(event) {
