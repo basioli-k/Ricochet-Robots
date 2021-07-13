@@ -365,9 +365,19 @@ function updateResults() {
             else {
                 console.log("Dobiveni rezultati su: " + data.rezultati);
                 rezultati = data.rezultati.split(',');
-                for (var i = 0; i < rezultati.length; i++ ) {
-                    if (rezultati[i] === "") continue;
-                    $("#result").append('<div>' + '<b>' + rezultati[i].split(':')[0] + '</b>: ' + rezultati[i].split(':')[1] + '</div>');
+                rezultati_sort = new Array(rezultati.length - 1);
+                for (var i = 0; i < rezultati.length - 1; i++ ) {
+                    rezultati_sort[i] = rezultati[i].split(':');
+                }
+                rezultati_sort.sort(function (a, b) {
+                    var a1 = a[1];
+                    var b1 = b[1];
+                    if (a1 !== b1) return b1 - a1;
+                    return -1;
+                })
+
+                for (var i = 0; i < rezultati_sort.length; i++ ) {
+                    $("#result").append('<div>' + '<b>' + rezultati_sort[i][0] + '</b>: ' + rezultati_sort[i][1] + '</div>');
                 }
             }
         },
