@@ -57,19 +57,6 @@ html, body {
     font-size: 1em;
 }
 
-/* Main menu */
-
-.main_menu{
-    list-style-type: none;   
-}
-
-.main_menu_entry{
-    margin: 10px;
-}
-
-.main_menu_button{
-
-}
 
 /* Stats */
 .radio_stat {
@@ -92,9 +79,6 @@ html, body {
     background: white;
 }
 
-.stat_row{
-
-}
 .btn_group:after{
     content: "";
     clear: both;
@@ -265,5 +249,5 @@ h3{
 }
 
 #chat-heading{
-    padding-right: 50px;
+    border-right: 50px;
 }

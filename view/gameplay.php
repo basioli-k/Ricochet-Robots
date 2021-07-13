@@ -32,6 +32,7 @@
 
 
 <script src= <?php echo __SITE_URL . "/js/robot_movement.js"; ?>></script>
+<script src= <?php echo __SITE_URL . "/js/revert_moves.js"; ?>></script>
 <script src= <?php echo __SITE_URL . "/js/gameplay.js"; ?>></script>
 <script src= <?php echo __SITE_URL . "/js/utils.js"; ?>></script>
 
