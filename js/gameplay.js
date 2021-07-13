@@ -1,5 +1,6 @@
 var ime = getUsername(), timestampPoruka = 0, timestampPotez = 0;
-var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 5;
+var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 3;
+var krug = 0;
 var cilj = {
     znak: null, //"fas fa-star",  OSTAVLJAM TI ZAKOMENTIRANO DA VIDIS KAKO CE IZGLEDAT, OCEKUJEM fas razmak znak
     boja: null//"#0000ff",
@@ -26,7 +27,8 @@ $(document).ready(function () {
             },
             error: function( xhr, status )
             {
-                console.log( "cekajPoruku :: error :: status = " + status );
+                console.log( "jesamPrvi :: error :: status = " + status );
+                console.log(xhr);
             }
         } );
 
@@ -104,7 +106,7 @@ function allowRobotMovement(brojPoteza){
                     data: {
                         potez: povuceniPotezi,
                         color: hexColor,
-                        dir: direction,
+                        dir: direction
                     },
                     success: function (data) {
                         if (typeof(data.error) !== "undefined") 
@@ -376,7 +378,14 @@ function updateResults() {
 
 function licitacija() {
     console.log("licitacija");
-    
+    get_new_token( krug++ );
+    if (cilj === null){
+        console.log("kraj igre");
+        //krajIgre();
+        return;
+    }
+    draw_goal();
+
     // brisanje chata i licitacija.
     $.ajax({
         url: "./app/ocistiLog.php",
@@ -507,6 +516,7 @@ function cekajPoruku()
             {
                 // Ipak je došlo do greške!
                 console.log( "cekajPoruku :: success :: server javio grešku " + data.error );
+                console.log(xhr);
             }
             else
             {
