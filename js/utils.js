@@ -34,6 +34,7 @@ function get_new_token( round ) {
         else{
           cilj.znak = data.tokens.split(":")[1];
           cilj.boja = data.tokens.split(":")[0];
+          console.log([cilj, round])
         }
         
     },

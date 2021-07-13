@@ -41,8 +41,6 @@ for ($i = 0 ; $i < count($polje) ; $i++){
         $polje[$i]["najbolji"] = true;
 }
 
-print_r($polje);
-
 for($i = 0; $i < count($polje) ; $i++){
     $igrac = Player::getPlayer($polje[$i]["ime"]);
     
