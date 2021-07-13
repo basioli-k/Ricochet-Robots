@@ -43,8 +43,9 @@ if( $username != '' && $bodovi != '')
 {
     $rezultati_string = file_get_contents($filename);
     $rezultati = explode(',', $rezultati_string);
+    array_pop($rezultati);
     $postavljeni = false;
-    for ($i = 0; $i < count($rezultati) - 1; $i++) {
+    for ($i = 0; $i < count($rezultati); $i++) {
         $ime = explode(':', $rezultati[$i])[0];
         if ($ime === $username) {
             $broj = explode(':', $rezultati[$i])[1];
@@ -54,7 +55,6 @@ if( $username != '' && $bodovi != '')
         }
     }
     if (!$postavljeni) {
-        $rezultati = [];
         array_push($rezultati, $username . ':' . $bodovi);
     }
 
