@@ -1,5 +1,5 @@
 var ime = getUsername(), timestampPoruka = 0, timestampPotez = 0;
-var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 10;
+var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 3;
 var krug = 0;
 var cilj = {
     znak: null, //"fas fa-star",  OSTAVLJAM TI ZAKOMENTIRANO DA VIDIS KAKO CE IZGLEDAT, OCEKUJEM fas razmak znak
@@ -175,21 +175,24 @@ function updatajRezultate(username, bodovi) {
 // Da li je trenutacni "token" dobro rijesen (ako je onda idemo u fazu licitacija, ako nije onda sljedeci igrac pokusava dati rijesenje).
 // Treba slozit.
 function dobroRijeseno() {
-    return true;
     if (cilj.znak === null || cilj.boja === null)
         return false
+    
+    if (cilj.boja === "purple")
+        cilj.boja = "#800080";    
     
     let class_name = "." + cilj.znak.replaceAll(" ", ".");
 
     let target_field = $(class_name).filter( function (){ 
-        
         let color = $(this).css("color").replace(/[^\d,]/g, '').split(',');
-
-        return rgbToHex(color[0], color[1], color[2]) === cilj.boja;
+        return (rgbToHex(color[0], color[1], color[2]) === cilj.boja) && $(this).parent()[0].tagName !== "SPAN";
     }).get(0);
 
-    let parent = $(target_field).parent().css("background-color").replace(/[^\d,]/g, '').split(',');
+    if (cilj.boja === "#800080" && $(target_field).parent().attr("class") === "robot_field")
+        return true;
 
+    let parent = $(target_field).parent().css("background-color").replace(/[^\d,]/g, '').split(',');
+    
     return rgbToHex(parent[0], parent[1], parent[2]) === cilj.boja;
 }
 
@@ -319,10 +322,8 @@ function cekajPotez(brojPoteza) {
             }
             else {
                 timestampPotez = data.timestamp;
-                // console.log("primljeni su potezi za boju: " + data.hexColor + " i smjer: " + data.direction);
                 move_robot(data.hexColor, data.direction);
                 povuceniPotezi++;
-                // console.log("potez dobiven, povuceniPotezi:" + povuceniPotezi + ", brojPoteza: " + brojPoteza);
                 if (povuceniPotezi <= brojPoteza) {
                     if (dobroRijeseno()) {
                         // TODO: update rezultate.
@@ -384,7 +385,7 @@ function krajIgre() {
         type: 'GET',
         async: false,
         data: {
-            filenames: "chat.log,licitacija.log,timer.log,rezultati.log,potezi.log"
+            filenames: "chat.log,licitacija.log,timer.log,rezultati.log,potezi.log,../controller/usernames.log"
         },
         success: function(data) {
             if (typeof(data.error) !== "undefined") 
@@ -397,15 +398,17 @@ function krajIgre() {
         }
     })
 
-    window.location.replace("https://rp2.studenti.math.hr/~aviroiva/Ricochet-Robots/");
+    window.location.replace("./index.php");
+    alert("Igra je završila.");
 }
 
 function licitacija() {
     console.log("licitacija");
     get_new_token( krug++ );
+    console.log("KRUG:", krug);
     if (cilj === null){
         console.log("kraj igre");
-        //krajIgre();
+        krajIgre();
         return;
     }
     draw_goal();
@@ -600,5 +603,5 @@ function posaljiPoruku()
 } 
 
 window.onbeforeunload = function (e) {
-    window.location.assign("./view/main_menu.php");
+    window.location.assign("./index.php");
 };
