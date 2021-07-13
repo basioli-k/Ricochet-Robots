@@ -393,7 +393,6 @@ function krajIgre() {
     $.ajax({
         url: './app/ocistiLog.php',
         type: 'GET',
-        async: false,
         data: {
             filenames: "chat.log,licitacija.log,timer.log,rezultati.log,potezi.log,../controller/usernames.log"
         },
@@ -402,6 +401,20 @@ function krajIgre() {
                 console.log("Greska:: ocistiLog.php:: " + data.error);
             else
                 console.log("Poruke uspjesno pociscene");
+        },
+        error: function(xhr, status) {
+            console.log(xhr);
+        }
+    })
+
+    $.ajax({
+        url: './app/updateBaze.php',
+        type: 'GET',
+        success: function(data) {
+            if (typeof(data.error) !== "undefined") 
+                console.log("Greska:: ocistiLog.php:: " + data.error);
+            else
+                console.log("Baza updatana");
         },
         error: function(xhr, status) {
             console.log(xhr);
