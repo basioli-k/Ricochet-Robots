@@ -1,5 +1,5 @@
 var ime = getUsername(), timestampPoruka = 0, timestampPotez = 0;
-var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 20;
+var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 5;
 var cilj = {
     znak: null, //"fas fa-star",  OSTAVLJAM TI ZAKOMENTIRANO DA VIDIS KAKO CE IZGLEDAT, OCEKUJEM fas razmak znak
     boja: null//"#0000ff",
@@ -116,6 +116,8 @@ function allowRobotMovement(brojPoteza){
                             }
                             else if (povuceniPotezi === brojPoteza) {
                                 disallowRobotMovement();
+                                console.log("PRIJE POZIVA")
+                                vratiPoteze();
                                 pomicanje();
                             }
                         } 
@@ -422,7 +424,8 @@ function pomicanje() {
         console.log(ranking[i][1] + " nije jos igrao.");
         odigrali.push(ranking[i][1]);
         nekoJeIgral = true;
-
+        console.log("PRIJE POZIVA ZAPAMTI POZICIJE")
+        zapamtiPozicije();
         povuceniPotezi = 0;
         if (ime === ranking[i][1]) {
             console.log("povlacim " + ranking[i][2] + " poteza");
