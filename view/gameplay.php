@@ -28,6 +28,8 @@
 <h3>Score</h3>
 <div id="result"></div>
 <br><br>
+<div id="broj_preostalih">Remaining moves: <span id="broj_preostalih_poteza">0</span></div>
+<br><br>
 </aside>
 </div>
 <form action=" <?php echo __SITE_URL ?>/index.php" method="get">

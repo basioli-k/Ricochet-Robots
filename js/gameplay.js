@@ -1,4 +1,4 @@
-var ime = getUsername(), timestampPoruka = 0, timestampPotez = 0;
+var ime = getUsername(), timestampPoruka = 0, timestampPotez = 0, brojPreostalihPoteza = 0;
 var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 3;
 var krug = 0;
 var cilj = {
@@ -112,6 +112,8 @@ function allowRobotMovement(brojPoteza){
                             console.log("Greska:: posaljiPotez:: " + data.error);
                         // console.log("response of posaljiPoruku.php je: " + data.response);
                         povuceniPotezi++;
+                        brojPreostalihPoteza = brojPoteza - povuceniPotezi;
+                        $( "#broj_preostalih_poteza").html(brojPreostalihPoteza);
                         if (povuceniPotezi <= brojPoteza) {
                             if (dobroRijeseno()) {
                                 disallowRobotMovement();
@@ -324,6 +326,8 @@ function cekajPotez(brojPoteza) {
                 timestampPotez = data.timestamp;
                 move_robot(data.hexColor, data.direction);
                 povuceniPotezi++;
+                brojPreostalihPoteza = brojPoteza - povuceniPotezi;
+                $( "#broj_preostalih_poteza").html(brojPreostalihPoteza);
                 if (povuceniPotezi <= brojPoteza) {
                     if (dobroRijeseno()) {
                         // TODO: update rezultate.
@@ -503,6 +507,8 @@ function pomicanje() {
         nekoJeIgral = true;
         zapamtiPozicije();
         povuceniPotezi = 0;
+        brojPreostalihPoteza = parseInt(ranking[i][2]) - povuceniPotezi;
+        $( "#broj_preostalih_poteza").html(brojPreostalihPoteza);
         if (ime === ranking[i][1]) {
             console.log("povlacim " + ranking[i][2] + " poteza");
             povuciPoteze(parseInt(ranking[i][2]));
