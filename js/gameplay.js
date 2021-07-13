@@ -6,8 +6,6 @@ var cilj = {
     boja: null//"#0000ff",
 };
 
-var pozicijeRobota = [];
-
 $(document).ready(function () {
     $.ajax(
         {
@@ -16,6 +14,7 @@ $(document).ready(function () {
             dataType: "json",
             // async: false,
             beforeSend: function(){
+                $('<p id="par"><b>Waiting for more players!<b></p>').insertBefore('body');
                 $('body').hide();
             },
             success: function( data ) 
@@ -176,6 +175,7 @@ function updatajRezultate(username, bodovi) {
 // Da li je trenutacni "token" dobro rijesen (ako je onda idemo u fazu licitacija, ako nije onda sljedeci igrac pokusava dati rijesenje).
 // Treba slozit.
 function dobroRijeseno() {
+    return true;
     if (cilj.znak === null || cilj.boja === null)
         return false
     
@@ -217,6 +217,7 @@ function waitOnHost(){
                     console.log("Greska:: cekajTimer.php:: " + data.error);
                 }
                 else {
+                    $('#par').remove();
                     $('body').show();
                     $( "#btn" ).on( "click", posaljiPoruku );
                     $("#txt").keypress(function(event) {
@@ -357,7 +358,6 @@ function updateResults() {
         },
         async: false,
         succes: function(data) {
-            console.log("uspjesno sam dobio rezultati.log")
             if (typeof(data.error) !== "undefined") 
                 console.log("Greska:: ocistiPoruke.php:: " + data.error);
             else {
@@ -374,6 +374,25 @@ function updateResults() {
         }
     })
 
+}
+
+function krajIgre() {
+    $.ajax({
+        url: './app/ocistiLog.php',
+        type: 'GET',
+        data: {
+            filenames: "chat.log,licitacija.log,timer.log,rezultati.log,potezi.log"
+        },
+        succes: function(data) {
+            if (typeof(data.error) !== "undefined") 
+                console.log("Greska:: ocistiPoruke.php:: " + data.error);
+            else
+                console.log("Poruke uspjesno pociscene");
+        },
+        error: function(xhr, status) {
+            console.log(xhr);
+        }
+    })
 }
 
 function licitacija() {
