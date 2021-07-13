@@ -1,10 +1,2 @@
-css
-
 extra:
 animacija kretanja robota
-
-ivan:
-vracanje poteza ako nije dobro
-pamcenje rezultata
-ciscenje nakon kraja igre i povratak na main menu
-nakon prve licitacije cekaj 60 sekundi
