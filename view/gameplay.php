@@ -8,7 +8,13 @@
 <input type="text" id="txt" class="input">
 <button id="btn" class="button">Send</button>
 <br><br>
-<div id="timer"></div>
+<div id="game_flow">
+    Time remaining:
+    <span id="timer"></span>
+    <br>
+    Look for:
+    <span id="token"></span>
+</div>
 <br><br>
 </aside>
 
@@ -22,8 +28,6 @@
 <h3>Score</h3>
 <div id="result"></div>
 <br><br>
-<div id="timer"></div>
-<br><br>
 </aside>
 </div>
 <form action=" <?php echo __SITE_URL ?>/index.php" method="get">
@@ -33,7 +37,7 @@
 
 <script src= <?php echo __SITE_URL . "/js/robot_movement.js"; ?>></script>
 <script src= <?php echo __SITE_URL . "/js/revert_moves.js"; ?>></script>
-<script src= <?php echo __SITE_URL . "/js/gameplay.js"; ?>></script>
 <script src= <?php echo __SITE_URL . "/js/utils.js"; ?>></script>
+<script src= <?php echo __SITE_URL . "/js/gameplay.js"; ?>></script>
 
 <?php require_once __SITE_PATH . "/view/_footer.php";?>
