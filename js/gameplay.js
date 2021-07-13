@@ -1,5 +1,5 @@
 var ime = getUsername(), timestampPoruka = 0, timestampPotez = 0;
-var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 3;
+var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 10;
 var krug = 0;
 var cilj = {
     znak: null, //"fas fa-star",  OSTAVLJAM TI ZAKOMENTIRANO DA VIDIS KAKO CE IZGLEDAT, OCEKUJEM fas razmak znak
