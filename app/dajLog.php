@@ -8,7 +8,13 @@ function sendJSONandExit( $message )
     exit( 0 );
 }
 
-$filename  = "licitacija.log";
+$filename    = isset( $_GET['filename'] ) ? $_GET['filename'] : "";
+
+if ($filename === "") {
+    $response = [];
+    $response[ 'error' ] = "Niste poslali ime filea kojeg treba dohvatiti."; 
+    sendJSONandExit( $response );
+}
 
 $error = "";
 if( !file_exists( $filename ) )
@@ -31,8 +37,8 @@ if( $error !== "" )
     sendJSONandExit( $response );
 }
 
-$licitacija = file_get_contents($filename);
-$response['licitacija'] = $licitacija;
+$content = file_get_contents($filename);
+$response[explode('.', $filename)[0]] = $content;
 sendJSONandExit( $response );
 
 ?>
