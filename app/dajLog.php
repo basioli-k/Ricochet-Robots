@@ -38,7 +38,14 @@ if( $error !== "" )
 }
 
 $content = file_get_contents($filename);
-$response[explode('.', $filename)[0]] = $content;
+if ( isset($_GET['round']) && (int) $_GET['round'] < 17){
+    $response[explode('.', $filename)[0]] = explode(",", $content)[ (int) $_GET['round'] ];
+    $response["game_over"] = false;
+}
+else if ( isset($_GET['round']) && (int) $_GET['round'] >= 17)
+    $response["game_over"] = true;
+else
+    $response[explode('.', $filename)[0]] = $content;
 sendJSONandExit( $response );
 
 ?>
