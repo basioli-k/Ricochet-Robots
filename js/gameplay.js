@@ -1,5 +1,5 @@
 var ime = getUsername(), timestampPoruka = 0, timestampPotez = 0, brojPreostalihPoteza = 0;
-var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 3;
+var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 60;
 var krug = 0;
 var cilj = {
     znak: null, //"fas fa-star",  OSTAVLJAM TI ZAKOMENTIRANO DA VIDIS KAKO CE IZGLEDAT, OCEKUJEM fas razmak znak
@@ -113,6 +113,9 @@ function allowRobotMovement(brojPoteza){
                         // console.log("response of posaljiPoruku.php je: " + data.response);
                         povuceniPotezi++;
                         brojPreostalihPoteza = brojPoteza - povuceniPotezi;
+                        if (brojPreostalihPoteza === 0){
+                            $( "#broj_preostalih").hide();
+                        }
                         $( "#broj_preostalih_poteza").html(brojPreostalihPoteza);
                         if (povuceniPotezi <= brojPoteza) {
                             if (dobroRijeseno()) {
@@ -327,6 +330,9 @@ function cekajPotez(brojPoteza) {
                 move_robot(data.hexColor, data.direction);
                 povuceniPotezi++;
                 brojPreostalihPoteza = brojPoteza - povuceniPotezi;
+                if (brojPreostalihPoteza === 0){
+                    $( "#broj_preostalih").hide();
+                }
                 $( "#broj_preostalih_poteza").html(brojPreostalihPoteza);
                 if (povuceniPotezi <= brojPoteza) {
                     if (dobroRijeseno()) {
@@ -531,6 +537,7 @@ function pomicanje() {
         zapamtiPozicije();
         povuceniPotezi = 0;
         brojPreostalihPoteza = parseInt(ranking[i][2]) - povuceniPotezi;
+        $( "#broj_preostalih").show();
         $( "#broj_preostalih_poteza").html(brojPreostalihPoteza);
         if (ime === ranking[i][1]) {
             console.log("povlacim " + ranking[i][2] + " poteza");

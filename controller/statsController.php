@@ -11,7 +11,7 @@ class StatsController {
         $name_pieces = explode("_", $sort_by);
         $name_pieces[0] = ucfirst($name_pieces[0]);
         $column_name = implode(" ", $name_pieces);
-        
+
         $players = Player::order_by($sort_by);
 
         require_once __SITE_PATH . "/view/stats.php";

@@ -190,12 +190,11 @@ abstract class Model {
     public static function order_by($order_by, $limit = 10){
         $db = DB::getConnection();
 
-        $query = "SELECT " . static::generateAttributeList() . " FROM " . static::$table . " ORDER BY :order_by;";// LIMIT :limit";
+        $query = "SELECT " . static::generateAttributeList() . " FROM " . static::$table . " ORDER BY $order_by DESC;";// LIMIT :limit";
 
         $st = $db->prepare($query);
-        //echo $query ;
         try{
-            $st->execute(array('order_by' => $order_by));    //, 'limit' => $limit));
+            $st->execute();    //, 'limit' => $limit));
         }
         catch( PDOException $e ) { exit( "PDO error [get top sorted elements " . static::$table . "]: " . $e->getMessage() ); }
 

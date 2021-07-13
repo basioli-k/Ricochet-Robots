@@ -30,8 +30,6 @@ class GameplayController{
 				[new Field("1001"), new Field("0001"), new Field("0001"), new Field("0001"), new Field("0001"), new Field("0001"), new Field("0011"), new Field("1001"), new Field("0001"), new Field("0001"), new Field("0001"), new Field("0011"), new Field("1001"), new Field("0001",NULL, BLUE), new Field("0001"), new Field("0011")]
 			];
             $game = new Game($board, []);
-
-			$game->add_player($_SESSION["player"]);
             
             $_SESSION["game"] = $game;
         }
@@ -61,7 +59,6 @@ class GameplayController{
 			if( isset($_SESSION["player"]) && $_SESSION["player"]->username !== trim($user))
 				$count++;
 		}
-		echo $_SESSION["player"]->username . "<br/>";
 
 		if ($count === count($active_users))
 			file_put_contents( $filename,  $_SESSION["player"]->username . ",", FILE_APPEND);
