@@ -251,3 +251,9 @@ h3{
 #chat-heading{
     border-right: 50px;
 }
+
+#par{
+    text-align: center;
+    font-size: xx-large;
+    padding-top: 20%;
+}
