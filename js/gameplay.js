@@ -5,6 +5,8 @@ var cilj = {
     boja: null//"#0000ff",
 };
 
+var pozicijeRobota = [];
+
 $(document).ready(function () {
     $.ajax(
         {
@@ -107,29 +109,20 @@ function allowRobotMovement(brojPoteza){
                     success: function (data) {
                         if (typeof(data.error) !== "undefined") 
                             console.log("Greska:: posaljiPotez:: " + data.error);
-                        console.log("response of posaljiPoruku.php je: " + data.response);
+                        // console.log("response of posaljiPoruku.php je: " + data.response);
                         povuceniPotezi++;
                         if (povuceniPotezi <= brojPoteza) {
                             if (dobroRijeseno()) {
                                 disallowRobotMovement();
-                                // TODO: update rezultate.
+                                updatajRezultate(ime, 1);
                                 licitacija();
                             }
                             else if (povuceniPotezi === brojPoteza) {
                                 disallowRobotMovement();
+                                vratiPoteze();
                                 pomicanje();
                             }
                         } 
-                        /*
-                        if (povuceniPotezi === brojPoteza) {
-                            disallowRobotMovement();
-                            console.log("Potezi robota onemoguceni");
-                            if (dobroRijeseno())
-                                licitacija();
-                            else
-                                pomicanje();
-                        }
-                        */
                     },
                     error: function( xhr, status ) {
                         console.log(xhr);
@@ -155,9 +148,33 @@ function allowRobotMovement(brojPoteza){
     
 }
 
+function updatajRezultate(username, bodovi) {
+    // console.log("updatam rezultate od: " + username + "za: " + bodovi);
+    $.ajax({
+        url: './app/updatajRezultate.php',
+        type: 'GET',
+        data: {
+            username: username,
+            bodovi: bodovi
+        },
+        success: function(data) {
+            if (typeof(data.error) !== "undefined") 
+                console.log("Greska:: posaljiPotez:: " + data.error);
+            else    
+                console.log("updatajRezultate response:: " + data.response);
+        },
+        error: function (xhr, status) {
+            console.log(xhr)
+            if( status !== null )
+                console.log( "FAIL (" + status + ")" );
+        }
+    })
+}
+
 // Da li je trenutacni "token" dobro rijesen (ako je onda idemo u fazu licitacija, ako nije onda sljedeci igrac pokusava dati rijesenje).
 // Treba slozit.
 function dobroRijeseno() {
+    return true;
     if (cilj.znak === null || cilj.boja === null)
         return false
     
@@ -205,7 +222,6 @@ function waitOnHost(){
                         // console.log()
                         if (event.keyCode === 13 && !$("#btn").prop('disabled')) {
                             $("#btn").click();
-                            console.log($("btn"));
                         }
                     });
                     cekajPoruku();
@@ -226,7 +242,7 @@ function waitOnHost(){
 
 // Sortira i sreduje licitaciju.
 function srediLicitaciju(licitacija) {
-    // console.log(licitacija);
+    //console.log(licitacija);
     var glasovi = licitacija.split(',');
     var glasovi_sort = new Array(glasovi.length - 1);
     for (var i = 0; i < glasovi.length - 1; i++) {
@@ -262,14 +278,20 @@ function srediLicitaciju(licitacija) {
 function dajLicitaciju() {
     var licitacija;
     $.ajax({
-        url: './app/dajLicitaciju.php',
+        url: './app/dajLog.php',
+        data: {
+            filename: 'licitacija.log'
+        },
         type: "GET",
         // Asinkrono jer se radi o upitu za podatcima.
         async: false,
         success: function(data) {
-
-            // console.log(licitacija);
+            if( typeof( data.error ) !== "undefined" ) 
+                console.log( "dajPoteze :: success :: server javio grešku " + data.error );
             licitacija = srediLicitaciju(data.licitacija);
+        },
+        error: function (xhr, status) {
+            console.log(xhr);
         }
     })
     return licitacija;
@@ -306,24 +328,13 @@ function cekajPotez(brojPoteza) {
                         licitacija();
                     }
                     else if (povuceniPotezi === brojPoteza) {
+                        vratiPoteze();
                         pomicanje();
                     }
                     else {
                         cekajPotez(brojPoteza);
                     } 
                 } 
-                /*
-                if (povuceniPotezi < brojPoteza) {
-                    cekajPotez(brojPoteza);
-                }
-                // TODO: mozda manje jednako.
-                else if (povuceniPotezi === brojPoteza) {
-                    if (dobroRijeseno())
-                        licitacija();
-                    else
-                        pomicanje();
-                }
-                */
             }
         },
         error: function(xhr, status) {
@@ -333,6 +344,35 @@ function cekajPotez(brojPoteza) {
                 console.log( "FAIL cekajPoteze.php (" + status + ")" );
         }
     })
+}
+
+function updateResults() {
+    console.log("updatam rezultate");
+    $.ajax({
+        url: './app/dajLog.php',
+        type: "GET",
+        data: {
+            filename: 'rezultati.log'
+        },
+        async: false,
+        succes: function(data) {
+            console.log("uspjesno sam dobio rezultati.log")
+            if (typeof(data.error) !== "undefined") 
+                console.log("Greska:: ocistiPoruke.php:: " + data.error);
+            else {
+                console.log("Dobiveni rezultati su: " + data.rezultati);
+                rezultati = data.rezultati.split(',');
+                for (var i = 0; i < rezultati.length; i++ ) {
+                    if (rezultati[i] === "") continue;
+                    $("#result").append('<div>' + '<b>' + rezultati[i].split(':')[0] + '</b>: ' + rezultati[i].split(':')[1] + '</div>');
+                }
+            }
+        },
+        error: function (xhr, status) {
+            console.log(xhr);
+        }
+    })
+
 }
 
 function licitacija() {
@@ -359,6 +399,8 @@ function licitacija() {
     })
     $("#chat").empty();
     $("#ranking").empty();
+    $("#result").empty();
+    updateResults();
 
     $("#btn").prop('disabled', false);
 
@@ -426,6 +468,7 @@ function pomicanje() {
         odigrali.push(ranking[i][1]);
         nekoJeIgral = true;
 
+        zapamtiPozicije();
         povuceniPotezi = 0;
         if (ime === ranking[i][1]) {
             console.log("povlacim " + ranking[i][2] + " poteza");
