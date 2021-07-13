@@ -7,7 +7,21 @@ require_once 'app/init.php';
 
 session_start();
 
-if (isset( $_GET["rt"] ) && (isset($_SESSION['player']) || preg_match("/^(login|register)(.)*$/", $_GET["rt"]) ) )
+if (isset($_GET['rt']) && $_GET['rt'] === 'gameplay'){
+
+    clearstatcache();
+    if(filesize("./app/timer.log")){
+        $route = "mainMenu";
+        $warning  = "Game is in session.";
+        require_once __SITE_PATH . "/view/main_menu.php";
+        exit();
+    }
+    else 
+        $route = $_GET['rt'];
+
+}
+
+else if (isset( $_GET["rt"] ) && (isset($_SESSION['player']) || preg_match("/^(login|register)(.)*$/", $_GET["rt"]) ) )
     $route = $_GET["rt"];
 else 
     $route = "login";

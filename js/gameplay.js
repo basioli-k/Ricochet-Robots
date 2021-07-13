@@ -1,5 +1,5 @@
 var ime = getUsername(), timestampPoruka = 0, timestampPotez = 0;
-var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 20;
+var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 5;
 var cilj = {
     znak: null, //"fas fa-star",  OSTAVLJAM TI ZAKOMENTIRANO DA VIDIS KAKO CE IZGLEDAT, OCEKUJEM fas razmak znak
     boja: null//"#0000ff",
@@ -467,7 +467,6 @@ function pomicanje() {
         console.log(ranking[i][1] + " nije jos igrao.");
         odigrali.push(ranking[i][1]);
         nekoJeIgral = true;
-
         zapamtiPozicije();
         povuceniPotezi = 0;
         if (ime === ranking[i][1]) {
@@ -567,3 +566,7 @@ function posaljiPoruku()
     // Obriši sadržaj text-boxa.
     $( "#txt" ).val( "" );
 } 
+
+window.onbeforeunload = function (e) {
+    window.location.assign("./view/main_menu.php");
+};
