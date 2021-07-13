@@ -521,3 +521,7 @@ function posaljiPoruku()
     // Obriši sadržaj text-boxa.
     $( "#txt" ).val( "" );
 } 
+
+window.onbeforeunload = function (e) {
+    window.location.assign("./view/main_menu.php");
+};
