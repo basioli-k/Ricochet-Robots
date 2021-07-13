@@ -97,7 +97,7 @@ function allowRobotMovement(brojPoteza){
 
             const hexColor = rgbToHex(rgb[0], rgb[1], rgb[2]);
             
-            console.log("Pomakni" + hexColor + "robota u smjeru " + direction);
+            // console.log("Pomakni" + hexColor + "robota u smjeru " + direction);
             if (move_robot(hexColor, direction)) {
                 $.ajax({
                     url: './app/posaljiPotez.php',
@@ -160,7 +160,7 @@ function updatajRezultate(username, bodovi) {
         },
         success: function(data) {
             if (typeof(data.error) !== "undefined") 
-                console.log("Greska:: posaljiPotez:: " + data.error);
+                console.log("Greska:: updatajRezultate.php:: " + data.error);
             else    
                 console.log("updatajRezultate response:: " + data.response);
         },
@@ -211,7 +211,7 @@ function waitOnHost(){
             {
                 // Sljedeća naredba ne treba: kako je dataType="json", data je već konvertiran iz stringa u objekt.
                 // var data = JSON.parse( data );
-                console.log("HOST je ready");
+                // console.log("HOST je ready");
 
                 if (typeof(data.error) !== "undefined") {
                     console.log("Greska:: cekajTimer.php:: " + data.error);
@@ -221,7 +221,6 @@ function waitOnHost(){
                     $('body').show();
                     $( "#btn" ).on( "click", posaljiPoruku );
                     $("#txt").keypress(function(event) {
-                        // console.log()
                         if (event.keyCode === 13 && !$("#btn").prop('disabled')) {
                             $("#btn").click();
                         }
@@ -232,7 +231,7 @@ function waitOnHost(){
             },
             error: function( xhr, status )
             {
-                console.log( "cekajPoruku :: error :: status = " + status );
+                console.log( "cekajTimer :: error :: status = " + status );
                 // Nešto je pošlo po krivu...
                 // Ako se dogodio timeout, tj. server nije ništa poslao u zadnjih XY sekundi,
                 // pozovi ponovno waitOnHost.
@@ -289,7 +288,7 @@ function dajLicitaciju() {
         async: false,
         success: function(data) {
             if( typeof( data.error ) !== "undefined" ) 
-                console.log( "dajPoteze :: success :: server javio grešku " + data.error );
+                console.log( "dajLog :: success :: server javio grešku " + data.error );
             licitacija = srediLicitaciju(data.licitacija);
         },
         error: function (xhr, status) {
@@ -301,7 +300,7 @@ function dajLicitaciju() {
 
 function povuciPoteze(brojPoteza) {
     allowRobotMovement(brojPoteza);
-    console.log("dozvoljeni potezi robota");
+    // console.log("dozvoljeni potezi robota");
 }
 
 function cekajPotez(brojPoteza) {
@@ -320,10 +319,10 @@ function cekajPotez(brojPoteza) {
             }
             else {
                 timestampPotez = data.timestamp;
-                console.log("primljeni su potezi za boju: " + data.hexColor + " i smjer: " + data.direction);
+                // console.log("primljeni su potezi za boju: " + data.hexColor + " i smjer: " + data.direction);
                 move_robot(data.hexColor, data.direction);
                 povuceniPotezi++;
-                console.log("potez dobiven, povuceniPotezi:" + povuceniPotezi + ", brojPoteza: " + brojPoteza);
+                // console.log("potez dobiven, povuceniPotezi:" + povuceniPotezi + ", brojPoteza: " + brojPoteza);
                 if (povuceniPotezi <= brojPoteza) {
                     if (dobroRijeseno()) {
                         // TODO: update rezultate.
@@ -357,7 +356,9 @@ function updateResults() {
             filename: 'rezultati.log'
         },
         async: false,
-        succes: function(data) {
+        cache: false,   
+        dataType: 'json',
+        success: function(data) {
             if (typeof(data.error) !== "undefined") 
                 console.log("Greska:: ocistiPoruke.php:: " + data.error);
             else {
@@ -374,18 +375,20 @@ function updateResults() {
         }
     })
 
+    console.log("updatal sam rezultate");
 }
 
 function krajIgre() {
     $.ajax({
         url: './app/ocistiLog.php',
         type: 'GET',
+        async: false,
         data: {
             filenames: "chat.log,licitacija.log,timer.log,rezultati.log,potezi.log"
         },
-        succes: function(data) {
+        success: function(data) {
             if (typeof(data.error) !== "undefined") 
-                console.log("Greska:: ocistiPoruke.php:: " + data.error);
+                console.log("Greska:: ocistiLog.php:: " + data.error);
             else
                 console.log("Poruke uspjesno pociscene");
         },
@@ -393,6 +396,8 @@ function krajIgre() {
             console.log(xhr);
         }
     })
+
+    window.location.replace("https://rp2.studenti.math.hr/~aviroiva/Ricochet-Robots/");
 }
 
 function licitacija() {
@@ -416,7 +421,7 @@ function licitacija() {
         async: false,
         success: function (data) {
             if (typeof(data.error) !== "undefined") 
-                console.log("Greska:: ocistiPoruke.php:: " + data.error);
+                console.log("Greska:: ocistiLog.php:: " + data.error);
             else
                 console.log("Poruke uspjesno pociscene");
         },
@@ -477,7 +482,7 @@ function pomicanje() {
         async: false,
         success: function (data) {
             if (typeof(data.error) !== "undefined") 
-                console.log("Greska:: ocistiPoteze.php:: " + data.error);
+                console.log("Greska:: ocistiLog.php:: " + data.error);
             else
                 console.log("Potezi uspjesno pociscene");
         },
@@ -488,10 +493,9 @@ function pomicanje() {
     var ranking = dajLicitaciju();
     var nekoJeIgral = false
     for (var i = 0; i < ranking.length; i++ ) {
-        console.log(ranking[i][1]);
+        // console.log(ranking[i][1]);
         if (odigrali.includes(ranking[i][1])) 
             continue;
-        console.log(ranking[i][1] + " nije jos igrao.");
         odigrali.push(ranking[i][1]);
         nekoJeIgral = true;
         zapamtiPozicije();
