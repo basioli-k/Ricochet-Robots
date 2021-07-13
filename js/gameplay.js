@@ -174,7 +174,6 @@ function updatajRezultate(username, bodovi) {
 // Da li je trenutacni "token" dobro rijesen (ako je onda idemo u fazu licitacija, ako nije onda sljedeci igrac pokusava dati rijesenje).
 // Treba slozit.
 function dobroRijeseno() {
-    return true;
     if (cilj.znak === null || cilj.boja === null)
         return false
     
