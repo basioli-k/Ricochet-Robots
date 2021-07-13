@@ -12,8 +12,13 @@ if (isset($_GET['rt']) && $_GET['rt'] === 'gameplay'){
     // na main menu "game is in session" ili tako nesto
     // vidi kako sam slozio warning u register i login controller i viewu
     clearstatcache();  //kaze internet da ovo treba ako se mijenja cesto file
-    if(filesize("./app/timer.log"))
+    if(filesize("./app/timer.log")){
         $route = "mainMenu";
+        $warning  = "Game has already started.";
+            
+        require_once __SITE_PATH . "/view/main_menu.php";
+        exit();
+    }
     else 
         $route = $_GET['rt'];
 
