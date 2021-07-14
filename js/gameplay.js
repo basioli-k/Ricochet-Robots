@@ -19,6 +19,7 @@ $(document).ready(function () {
             },
             success: function( data ) 
             {
+                $("#gameplay_button").on("click", exit_room);
                 if (data.prvi)
                     waitConfirmation()
                 else
@@ -419,7 +420,7 @@ function krajIgre() {
         url: './app/ocistiLog.php',
         type: 'GET',
         data: {
-            filenames: "chat.log,licitacija.log,timer.log,rezultati.log,potezi.log,../controller/usernames.log"
+            filenames: "chat.log,licitacija.log,timer.log,rezultati.log,potezi.log,player_count.log,../controller/usernames.log"
         },
         success: function(data) {
             if (typeof(data.error) !== "undefined") 
@@ -639,6 +640,30 @@ function posaljiPoruku()
     $( "#txt" ).val( "" );
 } 
 
+function exit_room() {
+    $.ajax( 
+        {
+            url: "./app/decrement_players.php",
+            type: "GET",
+            async: false,
+            data: {},
+            dataType: "json",
+            success: function( data )
+            {
+                console.log(data);
+                if (data.player_num === 0)
+                    krajIgre();
+            },
+            error: function( xhr, status ) 
+            {
+                console.log(xhr);
+                if( status !== null )
+                    console.log( "exit_room :: greška pri izlasku iz sobe (" + status + ")" );
+            }
+    } );
+}
+
 window.onbeforeunload = function (e) {
+    exit_room();
     window.location.assign("./index.php");
 };
