@@ -1,5 +1,5 @@
 var ime = getUsername(), timestampPoruka = 0, timestampPotez = 0, brojPreostalihPoteza = 0;
-var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 60;
+var countdown = 0, winner = "", povuceniPotezi = 0, odigrali = [], vrijemeZaLicitaciju = 10;
 var krug = 0;
 var cilj = {
     znak: null, //"fas fa-star",  OSTAVLJAM TI ZAKOMENTIRANO DA VIDIS KAKO CE IZGLEDAT, OCEKUJEM fas razmak znak
@@ -401,6 +401,21 @@ function updateResults() {
 
 function krajIgre() {
     $.ajax({
+        url: './app/updateBaze.php',
+        type: 'GET',
+        async: false,
+        success: function(data) {
+            if (typeof(data.error) !== "undefined") 
+                console.log("Greska:: ocistiLog.php:: " + data.error);
+            else
+                console.log("UPDATEALA SE BAZA !!!");
+        },
+        error: function(xhr, status) {
+            console.log(xhr);
+        }
+    })
+    
+    $.ajax({
         url: './app/ocistiLog.php',
         type: 'GET',
         data: {
@@ -411,20 +426,6 @@ function krajIgre() {
                 console.log("Greska:: ocistiLog.php:: " + data.error);
             else
                 console.log("Poruke uspjesno pociscene");
-        },
-        error: function(xhr, status) {
-            console.log(xhr);
-        }
-    })
-
-    $.ajax({
-        url: './app/updateBaze.php',
-        type: 'GET',
-        success: function(data) {
-            if (typeof(data.error) !== "undefined") 
-                console.log("Greska:: ocistiLog.php:: " + data.error);
-            else
-                console.log("Baza updatana");
         },
         error: function(xhr, status) {
             console.log(xhr);
