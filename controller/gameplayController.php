@@ -63,6 +63,31 @@ class GameplayController{
 		if ($count === count($active_users))
 			file_put_contents( $filename,  $_SESSION["player"]->username . ",", FILE_APPEND);
 
+		$filename  = __SITE_PATH . "/app/player_count.log";
+
+		$error = "";
+		if( !file_exists( $filename ) )
+			$error = $error . "Datoteka " . $filename . " ne postoji. ";
+		else
+		{
+			if( !is_readable( $filename ) )
+				$error = $error . "Ne mogu čitati iz datoteke " . $filename . ". ";
+
+			if( !is_writable( $filename ) )
+				$error = $error . "Ne mogu pisati u datoteku " . $filename . ". ";
+		}
+
+		if( $error !== "" )
+		{
+			echo $error;
+			exit;
+		}
+		if (filesize($filename))
+			$active_players = (int) file_get_contents($filename) + 1;
+		else
+			$active_players = 1;
+		file_put_contents( $filename,  $active_players);
+
         require_once __SITE_PATH . "/view/gameplay.php";
         
     }
