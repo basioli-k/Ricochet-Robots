@@ -83,6 +83,18 @@ async fn usernames_and_google_accounts_are_unique(store: impl Store) {
     ));
 }
 
+async fn rejects_a_duplicate_account_id(store: impl Store) {
+    store.create(&account(1, "ana")).await.unwrap();
+    let same_id = Account {
+        google_subject: "google-other".into(),
+        ..account(1, "other")
+    };
+    assert!(matches!(
+        store.create(&same_id).await,
+        Err(StorageError::Database(_))
+    ));
+}
+
 async fn finds_accounts_by_exact_google_subject(store: impl Store) {
     store.create(&account(1, "ana")).await.unwrap();
     assert_eq!(
@@ -259,6 +271,7 @@ macro_rules! contract {
             contract!(@tests $make;
                 finds_accounts_by_id_and_username_ignoring_case,
                 usernames_and_google_accounts_are_unique,
+                rejects_a_duplicate_account_id,
                 finds_accounts_by_exact_google_subject,
                 changes_locale,
                 ranked_games_count_tokens_and_wins,

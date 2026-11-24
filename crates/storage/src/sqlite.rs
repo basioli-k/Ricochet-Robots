@@ -112,8 +112,14 @@ impl SqliteStore {
         let options = SqliteConnectOptions::from_str("sqlite::memory:")
             .map_err(db)?
             .foreign_keys(true);
-        // Each connection to `:memory:` is its own database, so keep one.
-        Self::open(SqlitePoolOptions::new().max_connections(1), options).await
+        // Each connection to `:memory:` is its own database: keep exactly one
+        // open for the store's lifetime, never recycled.
+        let pool = SqlitePoolOptions::new()
+            .min_connections(1)
+            .max_connections(1)
+            .idle_timeout(None)
+            .max_lifetime(None);
+        Self::open(pool, options).await
     }
 
     async fn open(
@@ -148,7 +154,10 @@ fn millis(t: Timestamp) -> Result<i64, StorageError> {
 
 /// Maps a unique-constraint failure on `accounts` to the matching error.
 fn create_error(e: sqlx::Error) -> StorageError {
-    if let sqlx::Error::Database(ref inner) = e {
+    if let sqlx::Error::Database(ref inner) = e
+        && inner.is_unique_violation()
+    {
+        // SQLite names the column only in the message: "table.column".
         let message = inner.message();
         if message.contains("accounts.username_key") {
             return StorageError::UsernameTaken;

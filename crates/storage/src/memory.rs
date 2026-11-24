@@ -65,6 +65,10 @@ impl Inner {
 impl PlayerRepository for InMemoryStore {
     async fn create(&self, account: &Account) -> Result<(), StorageError> {
         let mut inner = self.lock();
+        if inner.accounts.iter().any(|a| a.id == account.id) {
+            // Ids are random u128s; SQLite also rejects a clash as a database error.
+            return Err(StorageError::Database("duplicate account id".into()));
+        }
         if inner
             .accounts
             .iter()
