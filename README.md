@@ -49,10 +49,15 @@ Only releases at least 14 days old are allowed (see `CLAUDE.md`). Check with
 
 - npm: `npm install --save-dev --before=YYYY-MM-DD pkg@major`, with the date
   14 days ago.
-- Cargo: after `cargo add` or `cargo update`, pin anything too new with
-  `cargo update -p name@new --precise older`.
+- Cargo: add with an explicit old-enough version, `cargo add name@1.2.3`;
+  `cargo add name` writes the newest release as the minimum requirement, and
+  `cargo update --precise` can't go below a requirement. For transitive
+  crates the check flags, `cargo update -p name@new --precise older` works
+  as long as no `Cargo.toml` requirement forbids the older version.
 - Security fixes newer than that go in `.dependency-age-allow` with the
-  advisory ID.
+  advisory ID; the check notes entries that are no longer needed.
+- GitHub Actions are pinned to the commit SHA of a release at least 14 days
+  old, with the version in a comment.
 
 ### Legacy PHP app (`legacy/`)
 

@@ -292,6 +292,7 @@ app keeps working until phase 10.
 | Guest play | Allowed without registration; games with a guest are unranked |
 | Leaked data | Purged from git history; secret scanning added |
 | Hosting | Undecided; investigate later. The Dockerfile in phase 10 stays host-agnostic. |
+| Dependencies | Only releases at least 14 days old, enforced in CI; security fixes excepted with the advisory ID |
 | Existing accounts and stats | Start fresh; nothing is imported from the legacy MySQL |
 
 ## 6. Secrets policy
