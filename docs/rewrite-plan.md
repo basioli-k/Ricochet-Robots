@@ -87,7 +87,7 @@ ricochet-robots/
 ├── crates/
 │   ├── domain/                # pure rules: no I/O, no async, no serde_json
 │   ├── storage/               # repository traits + SQLx and in-memory impls
-│   └── server/                # axum HTTP + WebSocket, rooms, auth, mailer
+│   └── server/                # axum HTTP + WebSocket, rooms, Google/guest auth
 ├── web/                       # Svelte 5 + TypeScript (strict) + Vite client
 ├── migrations/                # SQLx migrations
 └── .agents/standards/         # submodule
@@ -143,8 +143,8 @@ ricochet-robots/
   queries instead of incrementing counters, so B1-style double counting
   can't corrupt data, and the leaderboard sort is a closed enum (fixes S5).
 - `game_players` keeps every participant so final scores stay complete:
-  `account_id` for accounts, or `is_guest = true` with `guest_name` for
-  guests. History is attributed only by `account_id`, never by name, so a
+  `account_id` for accounts or `guest_name` for guests (a `CHECK` allows
+  exactly one). History is attributed only by `account_id`, never by name, so a
   later account with a guest's old nickname inherits nothing.
 - `games.ranked` is set when the game is stored: true only if every player
   had an account and there were at least two. Stats and the leaderboard
@@ -163,21 +163,29 @@ ricochet-robots/
   without leaking internals.
 - Dependencies injected through an `AppState` built in `main`:
   `Arc<dyn PlayerRepository>`, `Arc<dyn GameResultRepository>`,
-  `Arc<dyn Mailer>`, `Arc<dyn Clock>`, `Arc<dyn Rng>`,
+  `Arc<dyn IdentityProvider>`, `Arc<dyn Clock>`, `Arc<dyn Rng>`,
   `Arc<dyn RateLimiter>` (driven by the `Clock`). Tests build it with
   in-memory and fake implementations.
 - Text: errors and events carry stable codes (e.g. `username_taken`), never
-  prose; the client translates them. The only server-rendered text is email,
-  from templates in English and Croatian, picked by the account's `locale`.
-  That is the same field the client's language preference saves to, so they
-  can't drift. Guests get no email; their language lives in the client.
-- Auth (sign-up, email confirmation, login, logout; replaces the PHP
-  controllers): argon2id hashes, `tower-sessions` cookie (HttpOnly, SameSite),
-  CSRF token on every state-changing request (including `POST /guest`),
-  session ID cycled on login, registration and guest start (prevents
-  session fixation), expired sessions purged by the store's expiry task,
-  email confirmation tokens from a CSPRNG with an expiry, sent through a
-  `Mailer` trait (SMTP via `lettre`; a logging mailer for development).
+  prose; the client translates them, so the server renders no user-facing
+  text at all. An account's `locale` stores its language preference across
+  devices; a guest's lives in the client.
+- Sign-in (replaces the PHP register/login controllers): Google only, or
+  play as a guest. No passwords, no email, nothing to confirm.
+  - OpenID Connect authorization-code flow with PKCE, `state` and `nonce`,
+    behind an `IdentityProvider` trait (Google in production, a fake in
+    tests). Only the `openid` scope is requested, so Google sends no email
+    or name; the ID token is verified (Google's signing keys, issuer,
+    audience = our client id, expiry, nonce) and only its `sub` is used.
+  - First sign-in asks for a username (same name rule as guests), creating
+    the account; later sign-ins find it by `sub`.
+  - `tower-sessions` cookie (HttpOnly, Secure, SameSite=Lax), CSRF token on
+    every state-changing request (`POST /guest`, choosing a username,
+    logout), session ID cycled on sign-in and guest start (prevents session
+    fixation), expired sessions purged by the store's expiry task.
+  - Configuration from the environment: `GOOGLE_CLIENT_ID`,
+    `GOOGLE_CLIENT_SECRET` (a secret: never committed) and the public base
+    URL for the redirect.
 - Guests: anyone can play without registering. `POST /guest` with a
   nickname starts a guest session (same cookie, no password or email),
   which expires after 24 hours of inactivity. The session holds
@@ -188,10 +196,10 @@ ricochet-robots/
   - Names: one rule for usernames and nicknames, ASCII `[A-Za-z0-9]{3,15}` (no
     Unicode, so no lookalike letters). Usernames are unique ignoring case
     (`Alice` is rejected when `alice` exists). A nickname must be unique in
-    the room and must not match a registered username, ignoring case; checked
+    the room and must not match an account's username, ignoring case; checked
     at guest start and again on every room join. Guests are always shown with
     a guest badge (`is_guest` in `Snapshot` and player lists), so a guest
-    whose name is registered later still can't pass as that account.
+    whose name is taken by an account later still can't pass as it.
   - Guests can create and join rooms, but games with any guest are
     unranked (see storage), so guests can't inflate anyone's stats.
 - Abuse limits, all through `RateLimiter` and configurable (defaults: 5 guest
@@ -231,7 +239,8 @@ ricochet-robots/
 - All user-facing strings in one translation module, English and Croatian.
   Language comes from the saved preference, falling back to the browser
   language. Chat is rendered as text, never HTML.
-- Pages: login (with "Play as guest"), register, lobby (room list), game,
+- Pages: sign-in ("Sign in with Google" or "Play as guest"), choose a
+  username (first Google sign-in only), lobby (room list), game,
   leaderboard.
 
 ## 4. Delivery plan
@@ -247,12 +256,12 @@ commits of at most ~200 lines of logic, each shipping its tests.
 | 3 | `feat/domain-round` | Targets, bidding order, `Round` state machine, `Game`, scoring, time passed in as values, injected `Shuffle`. A test for each bidding and round rule. |
 | 4 | `feat/domain-board-validation` | `solve` and `BoardValidator`; test that the fixed board passes and that broken boards (centre not blocked, missing target, robot on a blocked cell or on a target, unreachable target) fail. |
 | 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls, including: a game with a guest stores the guest's score and is unranked; a one-player game is unranked; stats count ranked games only; ties count as wins. |
-| 6a | `feat/server-auth` | `AppState`, register, confirm, login, logout, session (ID cycling, expiry purge), CSRF, `Mailer` with EN/HR email templates, account locale; HTTP integration tests, including case-insensitive username uniqueness and a new session ID after login. |
+| 6a | `feat/server-auth` | `AppState`, Google sign-in through `IdentityProvider` (OIDC code flow with PKCE, ID-token verification), username choice on first sign-in, logout, session (ID cycling, expiry purge), CSRF, account locale; HTTP integration tests with a fake provider, including rejected ID tokens (bad signature, wrong audience or issuer, expired, wrong nonce), case-insensitive username uniqueness and a new session ID after sign-in. |
 | 6b | `feat/server-guests` | Guest sessions and `RateLimiter`; tests: `RateLimiter` with a fake clock, the guest-start limit, name rule (length, non-ASCII rejected), clash with a username in any case, 24-hour expiry with a fake clock, CSRF on `POST /guest`. |
 | 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game` (each game gets a `Shuffle` backed by the injected `Rng`), room caps and idle closing; tests drive commands through a full round without a network, and cover a duplicate nickname in a room, the room-creation limit, the per-session/IP and global room caps, and idle closing with a fake clock. |
 | 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients, one of them a guest who finishes a round and is flagged `is_guest`, plus the chat and bid/move rate limits. |
-| 8 | `feat/web-auth-lobby` | Login (with "Play as guest"), register, lobby, leaderboard pages; extend the i18n module (saved language preference). |
-| 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with a registered player and a guest playing a round. |
+| 8 | `feat/web-auth-lobby` | Sign-in (Google or guest), username choice, lobby, leaderboard pages; extend the i18n module (saved language preference). |
+| 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with a signed-in player (fake identity provider) and a guest playing a round. |
 | 10 | `chore/remove-legacy` | Delete `legacy/`, first moving `legacy/tools/board_oracle.py` to `tools/` with a copy of the board literal it reads, so the fixed-board test values stay regenerable; Dockerfile and README with run and test commands. |
 | later | `feat/domain-quadrants` | Quadrant set and rotation, random boards, each checked by `BoardValidator`. |
 | later | `chore/hosting` | Pick a host (investigation pending) and add deployment. |
@@ -268,7 +277,7 @@ app keeps working until phase 10.
 | Client | Svelte 5 + TypeScript (strict) |
 | UI language | English and Croatian |
 | Board | The single fixed board for now; random quadrant boards only after `BoardValidator` exists |
-| Sign-up and email confirmation | Kept, reimplemented in Rust |
+| Accounts | Google sign-in only (no passwords, email or confirmation); anyone can play as a guest |
 | Guest play | Allowed without registration; games with a guest are unranked |
 | Leaked data | Purged from git history; secret scanning added |
 | Hosting | Undecided; investigate later. The Dockerfile in phase 10 stays host-agnostic. |
