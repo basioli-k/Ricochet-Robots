@@ -7,11 +7,13 @@ use crate::board::Board;
 use crate::geometry::Direction;
 use crate::pieces::{RobotColor, Target};
 use crate::robots::Robots;
-use crate::round::{Phase, Round, RoundError};
+use crate::round::{Phase, Round, RoundError, completes};
 
 /// Orders the target deck. Injected so games are reproducible in tests; the
 /// server supplies a random implementation.
 pub trait Shuffle {
+    /// Reorders `deck` in place. Must only permute it: no entry may be added,
+    /// dropped or duplicated (checked in debug builds).
     fn shuffle(&mut self, deck: &mut [Target]);
 }
 
@@ -44,6 +46,13 @@ impl From<RoundError> for GameError {
 
 /// Plays every target on the board once, in shuffled order. Robots carry
 /// over between rounds. Each solved target scores one token for its winner.
+///
+/// A target that the robots already complete when it comes up would be won
+/// by any move, so it goes to the bottom of the deck instead; the game ends
+/// early if no remaining target is playable.
+///
+/// `Game` is the intended entry point for play: it keeps the board, the
+/// deck and the current round consistent.
 #[derive(Debug, Clone)]
 pub struct Game {
     board: Board,
@@ -56,7 +65,8 @@ pub struct Game {
 }
 
 impl Game {
-    /// Starts the first round. Returns `None` if the board has no targets.
+    /// Starts the first round. Returns `None` if no target is playable (the
+    /// board has none, or the robots already complete every one).
     #[must_use]
     pub fn new(
         board: Board,
@@ -65,9 +75,14 @@ impl Game {
         shuffle: &mut impl Shuffle,
     ) -> Option<Self> {
         let mut deck: Vec<Target> = board.targets().iter().map(|(_, t)| *t).collect();
+        let before = deck.clone();
         shuffle.shuffle(&mut deck);
+        debug_assert!(
+            is_permutation(&before, &deck),
+            "Shuffle must only reorder the deck"
+        );
         deck.reverse(); // so pop() follows the shuffled order
-        let first = deck.pop()?;
+        let first = draw(&board, &mut deck, robots)?;
         Some(Self {
             board,
             window_ms,
@@ -166,10 +181,31 @@ impl Game {
             Phase::Unsolved => {}
             Phase::Bidding | Phase::Demonstrating { .. } => return Err(GameError::RoundInProgress),
         }
-        match self.deck.pop() {
-            Some(target) => self.round = Round::new(target, *self.round.robots(), self.window_ms),
+        let robots = *self.round.robots();
+        match draw(&self.board, &mut self.deck, robots) {
+            Some(target) => self.round = Round::new(target, robots, self.window_ms),
             None => self.over = true,
         }
         Ok(())
     }
+}
+
+/// Takes the next target the robots don't already complete, moving any
+/// that they do to the bottom of the deck. `None` if none is playable.
+fn draw(board: &Board, deck: &mut Vec<Target>, robots: Robots) -> Option<Target> {
+    for _ in 0..deck.len() {
+        let target = deck.pop()?;
+        if !completes(board, target, robots) {
+            return Some(target);
+        }
+        deck.insert(0, target);
+    }
+    None
+}
+
+fn is_permutation(a: &[Target], b: &[Target]) -> bool {
+    let (mut a, mut b) = (a.to_vec(), b.to_vec());
+    a.sort_unstable();
+    b.sort_unstable();
+    a == b
 }

@@ -140,3 +140,90 @@ fn round_errors_pass_through() {
         Err(GameError::Round(RoundError::WrongPhase))
     );
 }
+
+const BLUE_STAR: Target = Target::Colored(Blue, Symbol::Star);
+
+/// `board()` plus a Blue Star at (15,10), which Blue reaches with Down.
+fn board3() -> Board {
+    BoardBuilder::new()
+        .target(pos(0, 5), RED_MOON)
+        .and_then(|b| b.target(pos(0, 10), Target::Vortex))
+        .and_then(|b| b.target(pos(15, 10), BLUE_STAR))
+        .unwrap()
+        .build()
+        .unwrap()
+}
+
+fn close(game: &mut Game, bids: &[(PlayerId, u8)]) {
+    for &(player, moves) in bids {
+        game.bid(player, moves, Timestamp(0)).unwrap();
+    }
+    game.close_bidding(Timestamp(WINDOW)).unwrap();
+}
+
+/// Regression (PR #11 review): robots carry over, so a target can come up
+/// already completed; it must not be winnable by any single move.
+#[test]
+fn a_target_already_completed_is_put_back_not_played() {
+    let mut game = Game::new(board3(), robots(), WINDOW, &mut InOrder).unwrap();
+    close(&mut game, &[(ANA, 2)]);
+    game.move_robot(ANA, Blue, Up).unwrap(); // Blue parks on the vortex
+    game.move_robot(ANA, Red, Up).unwrap(); // Red completes the red moon
+    game.next_round().unwrap();
+    // The vortex is already completed by Blue, so the blue star comes first.
+    assert_eq!(game.round().target(), BLUE_STAR);
+    game.abandon_round().unwrap();
+    game.next_round().unwrap();
+    // Only the vortex is left, still completed: nothing playable remains.
+    assert!(game.is_over());
+    assert_eq!(game.leaders(), [ANA]);
+}
+
+#[test]
+fn the_first_target_is_skipped_if_already_completed() {
+    let red_on_moon = Robots::new([pos(0, 5), pos(5, 10), pos(10, 0), pos(15, 15)]).unwrap();
+    let game = Game::new(board(), red_on_moon, WINDOW, &mut InOrder).unwrap();
+    assert_eq!(game.round().target(), Target::Vortex);
+}
+
+#[test]
+fn later_rounds_keep_the_bidding_window() {
+    let mut game = new_game(&mut InOrder);
+    solve(&mut game, ANA, Red);
+    game.next_round().unwrap();
+    game.bid(BOB, 4, Timestamp(5_000)).unwrap();
+    assert_eq!(
+        game.round().bidding_closes_at(),
+        Some(Timestamp(5_000 + WINDOW))
+    );
+}
+
+#[test]
+fn the_leader_has_strictly_more_tokens() {
+    let mut game = Game::new(board3(), robots(), WINDOW, &mut InOrder).unwrap();
+    solve(&mut game, ANA, Red); // red moon
+    game.next_round().unwrap();
+    solve(&mut game, ANA, Blue); // vortex
+    game.next_round().unwrap();
+    close(&mut game, &[(BOB, 1)]);
+    game.move_robot(BOB, Blue, Direction::Down).unwrap(); // blue star
+    game.next_round().unwrap();
+    assert_eq!(game.scores().get(&ANA), Some(&2));
+    assert_eq!(game.scores().get(&BOB), Some(&1));
+    assert_eq!(game.leaders(), [ANA]);
+}
+
+/// Overwrites the deck instead of reordering it.
+struct Corrupting;
+impl Shuffle for Corrupting {
+    fn shuffle(&mut self, deck: &mut [Target]) {
+        deck.fill(Target::Vortex);
+    }
+}
+
+#[test]
+#[cfg(debug_assertions)]
+#[should_panic(expected = "Shuffle must only reorder the deck")]
+fn a_shuffle_that_corrupts_the_deck_is_caught_in_debug_builds() {
+    let _ = Game::new(board(), robots(), WINDOW, &mut Corrupting);
+}

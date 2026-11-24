@@ -232,9 +232,14 @@ impl Round {
     }
 
     fn target_reached(&self, board: &Board) -> bool {
-        board
-            .position_of(self.target)
-            .and_then(|cell| self.robots.robot_at(cell))
-            .is_some_and(|robot| self.target.is_reached_by(robot))
+        completes(board, self.target, self.robots)
     }
+}
+
+/// Whether a robot that may complete `target` stands on its cell.
+pub(crate) fn completes(board: &Board, target: Target, robots: Robots) -> bool {
+    board
+        .position_of(target)
+        .and_then(|cell| robots.robot_at(cell))
+        .is_some_and(|robot| target.is_reached_by(robot))
 }

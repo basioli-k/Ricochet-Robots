@@ -16,6 +16,7 @@ impl PlayerId {
 
 /// Milliseconds on a clock chosen by the caller. The domain never reads the
 /// time itself; callers pass it in, which keeps rules deterministic in tests.
+/// Callers must use one monotonic clock: earlier values rank bids first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Timestamp(pub u64);
 
