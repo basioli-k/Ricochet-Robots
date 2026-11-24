@@ -4,7 +4,9 @@ Fresh releases are where compromised publishes usually get caught, so the
 project only adopts versions that have been public for a while. Checks
 Cargo.lock (crates.io) and web/package-lock.json (npm registry). A
 dependency from anywhere else (git, a tarball URL) has no publish time to
-check, so it fails too; local path and workspace packages are skipped.
+check, so it fails too; local path and workspace packages are skipped (so
+third-party code vendored as a path dependency must go through review), as
+are npm packages bundled inside another package, whose parent is checked.
 
 Exceptions, each with a reason, go in .dependency-age-allow:
     crates:name@version  # why
@@ -81,16 +83,27 @@ def cargo_packages(lock_text):
     return sorted(registry), sorted(other)
 
 
+def npm_tarball_matches(resolved, name, version):
+    """Whether a registry tarball URL is for exactly `name`@`version`.
+
+    Otherwise a hand-edited lockfile could check one package's age while
+    npm installs another: the URL, not the entry's name, decides what
+    gets downloaded.
+    """
+    return resolved == f"{NPM_REGISTRY}{name}/-/{name.rsplit('/', 1)[-1]}-{version}.tgz"
+
+
 def npm_packages(lock_text):
     """(registry packages, unverifiable sources) in a package-lock.json v3."""
     registry, other = set(), set()
     for path, info in json.loads(lock_text).get("packages", {}).items():
-        if not path or info.get("link"):
-            continue  # the root package or a workspace link
+        if not path or info.get("link") or info.get("inBundle"):
+            continue  # the root, a workspace link, or shipped in its parent
         name = info.get("name") or path.rsplit("node_modules/", 1)[-1]
         key = (name, info.get("version", "?"))
         resolved = info.get("resolved", "")
-        (registry if resolved.startswith(NPM_REGISTRY) else other).add(key)
+        verified = resolved.startswith(NPM_REGISTRY) and npm_tarball_matches(resolved, *key)
+        (registry if verified else other).add(key)
     return sorted(registry), sorted(other)
 
 
@@ -110,35 +123,46 @@ def is_too_new(published, now, min_days=MIN_DAYS):
     return when > now - timedelta(days=min_days)
 
 
+def evaluate(published, allowed, unverifiable, now):
+    """Decide the outcome from looked-up publish times.
+
+    `published` maps "ecosystem:name@version" to an ISO publish time (None if
+    unknown); `unverifiable` lists keys from non-registry sources. Returns
+    (failures, stale allow-list entries).
+    """
+    failures, stale = [], set(allowed)
+    for key, when in sorted(published.items()):
+        new = when is None or is_too_new(when, now)
+        if key in allowed:
+            if new:
+                stale.discard(key)  # still needed
+        elif when is None:
+            failures.append(f"no publish time found: {key}")
+        elif new:
+            failures.append(f"too new: {key} (published {when[:10]})")
+    failures += [f"not from the registry, can't check its age: {key}" for key in sorted(unverifiable)]
+    return failures, sorted(stale)
+
+
 def main():
     now = datetime.now(timezone.utc)
     crates, crates_other = cargo_packages((ROOT / "Cargo.lock").read_text())
     npm, npm_other = npm_packages((ROOT / "web" / "package-lock.json").read_text())
-    jobs = [("crates", n, v, crate_published) for n, v in crates]
-    jobs += [("npm", n, v, npm_published) for n, v in npm]
+    jobs = [(f"crates:{n}@{v}", crate_published, n, v) for n, v in crates]
+    jobs += [(f"npm:{n}@{v}", npm_published, n, v) for n, v in npm]
     with ThreadPoolExecutor(max_workers=16) as pool:
-        times = list(pool.map(lambda job: job[3](job[1], job[2]), jobs))
+        times = list(pool.map(lambda job: job[1](job[2], job[3]), jobs))
+    published = {job[0]: when for job, when in zip(jobs, times)}
 
     allow_path = ROOT / ".dependency-age-allow"
     allowed = parse_allow(allow_path.read_text()) if allow_path.exists() else set()
-    failures, stale = [], set(allowed)
-    for (ecosystem, name, version, _), published in zip(jobs, times):
-        key = f"{ecosystem}:{name}@{version}"
-        new = published is None or is_too_new(published, now)
-        if key in allowed:
-            if new:
-                stale.discard(key)  # still needed
-        elif published is None:
-            failures.append(f"no publish time found: {key}")
-        elif new:
-            failures.append(f"too new: {key} (published {published[:10]})")
-    for ecosystem, packages in (("crates", crates_other), ("npm", npm_other)):
-        failures += [f"not from the registry, can't check its age: {ecosystem}:{n}@{v}" for n, v in packages]
+    unverifiable = [f"crates:{n}@{v}" for n, v in crates_other] + [f"npm:{n}@{v}" for n, v in npm_other]
+    failures, stale = evaluate(published, allowed, unverifiable, now)
 
     print(f"Checked {len(jobs)} packages against a {MIN_DAYS}-day minimum age.")
     for line in failures:
         print(f"  {line}")
-    for key in sorted(stale):
+    for key in stale:
         print(f"  note: allow-list entry no longer needed: {key}")
     return 1 if failures else 0
 
