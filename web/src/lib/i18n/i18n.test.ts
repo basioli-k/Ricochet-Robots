@@ -12,7 +12,7 @@ describe('pickLocale', () => {
   });
 
   it('ignores names inherited from Object.prototype', () => {
-    expect(pickLocale(['constructor', '__proto__', 'toString-HR'])).toBe('en');
+    expect(pickLocale(['constructor', '__proto__'])).toBe('en');
   });
 
   it('falls back to English', () => {

@@ -18,10 +18,10 @@ the rules.
 
 ### Rust workspace (`crates/`)
 
-Needs `rustup`; the pinned toolchain in `rust-toolchain.toml` installs
-itself on first use.
+Needs `rustup`.
 
 ```bash
+rustup toolchain install   # once: installs the version in rust-toolchain.toml
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
@@ -29,11 +29,11 @@ cargo test --workspace --locked
 
 ### Web client (`web/`)
 
-Needs Node.js 22.13 or newer.
+Needs Node.js 22.13+ or 24+.
 
 ```bash
 cd web
-npm ci
+npm ci --ignore-scripts   # as in CI
 npm run dev         # local dev server
 npm run lint
 npm run typecheck
