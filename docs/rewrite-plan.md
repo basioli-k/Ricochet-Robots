@@ -117,9 +117,13 @@ ricochet-robots/
   two-sided and targets one per cell, and the edge always stops movement.)
 - `Board::slide(robots, robot, dir) -> Position`: the one movement function,
   used by server validation, client preview and the solver.
-- `Round` state machine: `Bidding` -> `Demonstrating { queue }` ->
-  `Resolved`. Bids ordered by fewest moves, then earliest; a player may lower
-  their bid. Failed demonstrations reset robots and pass to the next bidder.
+- `Round` state machine: `Bidding` -> `Demonstrating` (bidders in ranked
+  order) -> `Solved` or `Unsolved`; a round nobody bids on is abandoned. Bids
+  ordered by fewest moves, then earliest; a player may only lower their bid.
+  Failed demonstrations reset robots and pass to the next bidder.
+- A target the robots already complete when it comes up (robots carry over
+  between rounds) goes to the bottom of the deck instead of being played;
+  the game ends early if no remaining target is playable.
 - `Game`: shuffled target deck, scores, game-over.
 - Deterministic by construction: callers pass the time in as `Timestamp`
   values (the domain never reads a clock), and the target deck is ordered
@@ -231,12 +235,12 @@ commits of at most ~200 lines of logic, each shipping its tests.
 | 0 | `chore/agent-standards` | Standards submodule, `CLAUDE.md`, this plan, history redaction, secret scanning. Done in PR #5. |
 | 1 | `chore/workspace-skeleton` | Cargo workspace, `web/` Svelte + Vite scaffold, CI (`cargo fmt --check`, `clippy -D warnings`, `cargo test`, `npm run lint`/`typecheck`/`test`). Move PHP to `legacy/` (its `.log` state files stay tracked: the app requires them to exist, and they go with `legacy/` in phase 10). |
 | 2 | `feat/domain-board` | Value types, `Board` with mirrored walls, `slide`, the current board as fixture; property tests (a robot never crosses a wall; sliding twice in one direction is a no-op). |
-| 3 | `feat/domain-round` | Targets, bidding order, `Round` state machine, `Game`, scoring, time passed in as values, injected `Shuffle`. Table tests for each bidding rule. |
+| 3 | `feat/domain-round` | Targets, bidding order, `Round` state machine, `Game`, scoring, time passed in as values, injected `Shuffle`. A test for each bidding and round rule. |
 | 4 | `feat/domain-board-validation` | `Solver` and `BoardValidator`; test that the fixed board passes and that broken boards (centre not blocked, missing target, robot on a blocked cell or on a target, unreachable target) fail. |
 | 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls, including: a game with a guest stores the guest's score and is unranked; a one-player game is unranked; stats count ranked games only; ties count as wins. |
 | 6a | `feat/server-auth` | `AppState`, register, confirm, login, logout, session (ID cycling, expiry purge), CSRF, `Mailer` with EN/HR email templates, account locale; HTTP integration tests, including case-insensitive username uniqueness and a new session ID after login. |
 | 6b | `feat/server-guests` | Guest sessions and `RateLimiter`; tests: `RateLimiter` with a fake clock, the guest-start limit, name rule (length, non-ASCII rejected), clash with a username in any case, 24-hour expiry with a fake clock, CSRF on `POST /guest`. |
-| 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game`, room caps and idle closing; tests drive commands through a full round without a network, and cover a duplicate nickname in a room, the room-creation limit, the per-session/IP and global room caps, and idle closing with a fake clock. |
+| 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game` (each game gets a `Shuffle` backed by the injected `Rng`), room caps and idle closing; tests drive commands through a full round without a network, and cover a duplicate nickname in a room, the room-creation limit, the per-session/IP and global room caps, and idle closing with a fake clock. |
 | 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients, one of them a guest who finishes a round and is flagged `is_guest`, plus the chat and bid/move rate limits. |
 | 8 | `feat/web-auth-lobby` | Login (with "Play as guest"), register, lobby, leaderboard pages; extend the i18n module (saved language preference). |
 | 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with a registered player and a guest playing a round. |
