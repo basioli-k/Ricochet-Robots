@@ -16,7 +16,8 @@ jobs:
   dependency-age:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: python3 -I -m unittest discover -s tools -p 'test_*.py'
       # Every locked crate and npm package must be at least 14 days old,
       # unless listed with a reason in .dependency-age-allow.
       - run: python3 -I tools/check_dependency_age.py
@@ -24,13 +25,13 @@ jobs:
   advisories:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       # Pinned to a release that itself meets the 14-day rule.
       - run: cargo install cargo-audit --version 0.22.2 --locked
       - run: cargo audit
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
       - run: npm audit --audit-level=low
