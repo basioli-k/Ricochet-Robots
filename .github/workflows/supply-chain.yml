@@ -1,0 +1,37 @@
+name: Supply chain
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Advisories are published without any change here, so re-check weekly.
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-age:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Every locked crate and npm package must be at least 14 days old,
+      # unless listed with a reason in .dependency-age-allow.
+      - run: python3 -I tools/check_dependency_age.py
+
+  advisories:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      # Pinned to a release that itself meets the 14-day rule.
+      - run: cargo install cargo-audit --version 0.22.2 --locked
+      - run: cargo audit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm audit --audit-level=low
+        working-directory: web

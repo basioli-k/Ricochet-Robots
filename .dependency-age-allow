@@ -1,0 +1,19 @@
+# Exceptions to the 14-day minimum release age (tools/check_dependency_age.py).
+# Each needs a reason; remove entries once the version is old enough anyway.
+# A security fix outranks the age rule: a known vulnerability is worse than
+# an unvetted release.
+
+# sqlx 0.9.0 caps libsqlite3-sys below 0.38, whose bundled SQLite has
+# RUSTSEC-2026-0459 (CVE-2026-119375); 0.9.1 allows the fixed 0.39.1.
+crates:sqlx@0.9.1             # RUSTSEC-2026-0459 fix path
+crates:sqlx-core@0.9.1        # RUSTSEC-2026-0459 fix path
+crates:sqlx-macros@0.9.1      # RUSTSEC-2026-0459 fix path
+crates:sqlx-macros-core@0.9.1 # RUSTSEC-2026-0459 fix path
+crates:sqlx-mysql@0.9.1       # RUSTSEC-2026-0459 fix path (locked, not built)
+crates:sqlx-postgres@0.9.1    # RUSTSEC-2026-0459 fix path (locked, not built)
+crates:sqlx-sqlite@0.9.1      # RUSTSEC-2026-0459 fix path
+
+# url 2.5.8 has RUSTSEC-2026-0592 (stack overflow in Url::origin on nested
+# blob: URLs); 2.5.9 fixes it and requires form_urlencoded 1.2.3.
+crates:url@2.5.9              # RUSTSEC-2026-0592 fix
+crates:form_urlencoded@1.2.3  # required by url 2.5.9

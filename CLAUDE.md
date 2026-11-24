@@ -38,6 +38,15 @@ Run before every commit (CI runs the same):
 - Web, from `web/`: `npm run lint`, `npm run typecheck`, `npm test`,
   `npm run build`
 
+## Dependencies
+
+Only adopt releases published at least 14 days ago: fresh releases are where
+compromised publishes usually get caught. This covers crates, npm packages
+and the tools CI installs. `tools/check_dependency_age.py` enforces it in CI.
+A known vulnerability outranks the rule: take the fix and list it in
+`.dependency-age-allow` with the advisory as the reason. See README for the
+commands.
+
 ## Secrets
 
 Never commit credentials or personal data, including in seeds and tests.

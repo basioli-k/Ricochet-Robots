@@ -41,6 +41,19 @@ npm test
 npm run build
 ```
 
+### Adding or updating dependencies
+
+Only releases at least 14 days old are allowed (see `CLAUDE.md`). Check with
+`python3 -I tools/check_dependency_age.py`; CI runs it, `cargo audit` and
+`npm audit` on every pull request and weekly.
+
+- npm: `npm install --save-dev --before=YYYY-MM-DD pkg@major`, with the date
+  14 days ago.
+- Cargo: after `cargo add` or `cargo update`, pin anything too new with
+  `cargo update -p name@new --precise older`.
+- Security fixes newer than that go in `.dependency-age-allow` with the
+  advisory ID.
+
 ### Legacy PHP app (`legacy/`)
 
 1. Serve `legacy/` as the document root, and set `RR_DB_DSN`, `RR_DB_USER`
