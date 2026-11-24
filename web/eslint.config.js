@@ -1,3 +1,4 @@
+import comments from '@eslint-community/eslint-plugin-eslint-comments/configs';
 import js from '@eslint/js';
 import { defineConfig } from 'eslint/config';
 import svelte from 'eslint-plugin-svelte';
@@ -10,6 +11,8 @@ export default defineConfig(
   js.configs.recommended,
   ...ts.configs.strictTypeChecked,
   ...svelte.configs.recommended,
+  comments.recommended,
+  { linterOptions: { reportUnusedDisableDirectives: 'error' } },
   {
     languageOptions: {
       globals: { ...globals.browser },
@@ -27,7 +30,11 @@ export default defineConfig(
     },
   },
   {
-    // Standards: no `any` without a comment explaining why.
-    rules: { '@typescript-eslint/no-explicit-any': 'error' },
+    // Standards: no `any` without a comment explaining why. Any disable
+    // comment must carry a reason after `--`.
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@eslint-community/eslint-comments/require-description': 'error',
+    },
   },
 );

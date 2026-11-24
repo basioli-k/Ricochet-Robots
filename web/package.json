@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@eslint-community/eslint-plugin-eslint-comments": "^4.8.1",
     "@eslint/js": "^10.0.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.2",
     "@tsconfig/svelte": "^5.0.9",
@@ -27,6 +28,6 @@
     "vitest": "^5.1.1"
   },
   "engines": {
-    "node": ">=22"
+    "node": "^22.13.0 || >=24"
   }
 }
