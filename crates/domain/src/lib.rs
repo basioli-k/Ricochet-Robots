@@ -13,6 +13,7 @@ mod pieces;
 mod robots;
 mod round;
 mod solver;
+mod validator;
 
 pub use bidding::{Bid, BidError, Bids, PlayerId, Timestamp};
 pub use board::{Board, BoardBuilder, BoardError};
@@ -22,3 +23,4 @@ pub use pieces::{RobotColor, Symbol, Target};
 pub use robots::{Robots, SharedCell};
 pub use round::{Phase, Round, RoundError};
 pub use solver::{Move, solve};
+pub use validator::{BoardProblem, BoardValidator};
