@@ -9,4 +9,9 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+async-trait = "0.1.92"
 domain.workspace = true
+thiserror = "2.0.21"
+
+[dev-dependencies]
+tokio = { version = "1.54.1", features = ["macros", "rt"] }
