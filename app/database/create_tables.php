@@ -1,6 +1,10 @@
 <?php
 
 
+// CLI only: this file sits under the web root.
+if( PHP_SAPI !== 'cli' )
+	exit( 1 );
+
 require_once __DIR__ . '/database.class.php';
 
 create_table_users();
