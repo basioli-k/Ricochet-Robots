@@ -42,8 +42,10 @@ Read config from environment variables and document names in
 ## Pull requests
 
 Every change reaches `main` through a pull request, including
-`chore: update agent standards` bumps (they may ride along in the current
-PR as their own commit; this overrides "one topic per branch" for them).
+`chore: update agent standards` bumps. Two kinds of change may ride along
+in the current PR as their own commit, overriding "one topic per branch":
+standards bumps, and small leftovers from the previous PR's review (named
+as such in the commit message and PR description).
 
 1. Push a `<type>/<kebab>` branch and open a PR against `main`.
 2. Review it with three independent reviewer subagents, each with its own
