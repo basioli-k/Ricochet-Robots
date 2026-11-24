@@ -45,8 +45,9 @@ compromised publishes usually get caught. This covers crates and npm
 packages (checked in CI by `tools/check_dependency_age.py`) and CI itself:
 actions are pinned to the commit SHA of an old-enough release, and tools CI
 installs are pinned to an old-enough version (checked by hand).
-A known vulnerability outranks the rule: take the fix and list it in
-`.dependency-age-allow` with the advisory as the reason. See README for the
+Exceptions go in `.dependency-age-allow` with a reason: a known
+vulnerability outranks the rule (take the fix, cite the advisory), and the
+owner may approve a specific case (cite the approval). See README for the
 commands.
 
 ## Secrets
