@@ -222,7 +222,8 @@ fn every_stop_matches_the_legacy_game() {
     let board = fixed_board::board();
     for (dir, rows) in tables {
         for cell in Position::all().filter(|p| !board.is_blocked(*p)) {
-            // The other robots wait inside the blocked centre, out of the way.
+            // The other robots wait inside the blocked centre, out of the way;
+            // this relies on `Robots` itself not rejecting blocked cells.
             let robots = Robots::new([cell, pos(7, 7), pos(7, 8), pos(8, 7)]).unwrap();
             let stop = board.slide(&robots, RobotColor::Red, dir);
             let digit = rows[usize::from(cell.row())].as_bytes()[usize::from(cell.col())];

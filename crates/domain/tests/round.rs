@@ -1,4 +1,4 @@
-use Direction::{Left, Up};
+use Direction::{Left, Right, Up};
 use RobotColor::{Blue, Green, Red};
 use domain::{
     Board, BoardBuilder, Direction, Phase, PlayerId, Position, RobotColor, Robots, Round,
@@ -163,11 +163,46 @@ fn when_everyone_fails_the_round_is_unsolved_with_robots_reset() {
 #[test]
 fn only_the_demonstrator_may_act() {
     let mut round = demonstrating(RED_MOON, &[(ANA, 2), (BOB, 3)]);
+    let before = round.clone();
     assert_eq!(
         round.move_robot(&board(), BOB, Red, Up),
         Err(RoundError::NotYourTurn)
     );
     assert_eq!(round.concede(BOB), Err(RoundError::NotYourTurn));
+    assert_eq!(round, before, "refused actions must not change the round");
+}
+
+/// Regression (PR #11 review): every move counts against the bid, not just
+/// the first, so a bid of several moves is used up move by move.
+#[test]
+fn a_multi_move_bid_is_used_up_move_by_move() {
+    let mut round = demonstrating(RED_MOON, &[(ANA, 2)]);
+    round.move_robot(&board(), ANA, Green, Up).unwrap();
+    assert_eq!(
+        round.phase(),
+        Phase::Demonstrating {
+            player: ANA,
+            bid: 2,
+            moves_made: 1
+        }
+    );
+    round.move_robot(&board(), ANA, Green, Right).unwrap();
+    assert_eq!(round.phase(), Phase::Unsolved);
+    assert_eq!(*round.robots(), robots());
+}
+
+#[test]
+fn solving_on_a_later_move_reports_the_moves_used() {
+    let mut round = demonstrating(RED_MOON, &[(ANA, 3)]);
+    round.move_robot(&board(), ANA, Blue, Up).unwrap();
+    round.move_robot(&board(), ANA, Red, Up).unwrap();
+    assert_eq!(
+        round.phase(),
+        Phase::Solved {
+            winner: ANA,
+            moves: 2
+        }
+    );
 }
 
 #[test]
@@ -190,11 +225,13 @@ fn a_move_that_goes_nowhere_does_not_count() {
 #[test]
 fn actions_outside_their_phase_are_refused() {
     let mut bidding = Round::new(RED_MOON, robots(), WINDOW);
+    let before = bidding.clone();
     assert_eq!(
         bidding.move_robot(&board(), ANA, Red, Up),
         Err(RoundError::WrongPhase)
     );
     assert_eq!(bidding.concede(ANA), Err(RoundError::WrongPhase));
+    assert_eq!(bidding, before, "refused actions must not change the round");
 
     let mut solved = demonstrating(RED_MOON, &[(ANA, 2)]);
     assert_eq!(
