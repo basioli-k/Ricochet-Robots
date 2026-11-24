@@ -203,7 +203,7 @@ async fn the_leaderboard_sorts_and_limits(store: impl Store) {
     ];
     store.record(&game(&with_guest)).await.unwrap();
     store
-        .record(&game(&[(Seat::Account(ANA), 1), (Seat::Account(BOB), 4)]))
+        .record(&game(&[(Seat::Account(ANA), 1), (Seat::Account(BOB), 8)]))
         .await
         .unwrap();
     store
@@ -218,6 +218,7 @@ async fn the_leaderboard_sorts_and_limits(store: impl Store) {
         entries.into_iter().map(|e| e.username).collect()
     };
     let by = |sort| store.leaderboard(sort, 10);
+    // Ana has the most wins but Bob the most tokens, so each sort differs.
     assert_eq!(
         names(by(LeaderboardSort::GamesWon).await.unwrap()),
         ["ana", "bob", "cid"]
@@ -228,7 +229,7 @@ async fn the_leaderboard_sorts_and_limits(store: impl Store) {
     );
     assert_eq!(
         names(by(LeaderboardSort::TokensWon).await.unwrap()),
-        ["ana", "bob", "cid"]
+        ["bob", "ana", "cid"]
     );
     // Equal stats fall back to username order, not creation order.
     store.create(&account(5, "zed")).await.unwrap();
@@ -247,7 +248,7 @@ async fn the_leaderboard_sorts_and_limits(store: impl Store) {
         .await
         .unwrap();
     assert_eq!(top.len(), 1);
-    assert_eq!(top[0].stats, stats(3, 2, 6));
+    assert_eq!(top[0].stats, stats(1, 1, 8));
 }
 
 /// Instantiates every contract check for one implementation.
