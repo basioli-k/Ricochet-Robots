@@ -1,6 +1,7 @@
 # Audit and rewrite plan
 
-Status: decisions agreed (section 5). Measured against `.agents/standards/standards/engineering.md`.
+Status: decisions agreed (section 5). Measured against
+`.agents/standards/standards/engineering.md`.
 
 ## 1. What exists today
 
@@ -91,7 +92,9 @@ ricochet-robots/
 
 ### `domain` crate (pure, fully unit-tested)
 
-- Value types: `Position`, `Direction`, `RobotColor`, `Symbol`, `Target`.
+- Value types: `Position`, `Direction`, `RobotColor`, `Symbol`, `Target`,
+  and an opaque `PlayerId`. The domain doesn't know whether a player is a
+  guest or has an account.
 - `Board`: walls stored as per-cell bitflags; the builder sets both sides of
   a wall so B6 cannot recur. For now there is one board: the current fixed
   layout, ported as data. Random quadrant boards come later, once boards can
@@ -122,6 +125,10 @@ ricochet-robots/
 - Store finished games (`games`, `game_players`) and compute stats with
   queries instead of incrementing counters, so B1-style double counting
   can't corrupt data, and the leaderboard sort is a closed enum (fixes S5).
+- `game_players.account_id` is nullable: guests are stored with their
+  nickname only, so final scores stay complete. Stats and the leaderboard
+  count accounts only.
+- Fresh database: no data is imported from the legacy MySQL.
 - SQLite (one file, easy to deploy); the trait keeps other databases open.
 
 ### `server` crate
@@ -134,13 +141,26 @@ ricochet-robots/
   in-memory and fake implementations.
 - Text: errors and events carry stable codes (e.g. `username_taken`), never
   prose; the client translates them. The only server-rendered text is email,
-  from templates in English and Croatian, picked by the locale stored on the
-  account at sign-up.
+  from templates in English and Croatian, picked by the account's `locale`.
+  That is the same field the client's language preference saves to, so they
+  can't drift. Guests get no email; their language lives in the client.
 - Auth (sign-up, email confirmation, login, logout; replaces the PHP
   controllers): argon2id hashes, `tower-sessions` cookie (HttpOnly, SameSite),
   CSRF token on forms, email confirmation tokens from a CSPRNG with an
   expiry, sent through a `Mailer` trait (SMTP via `lettre`; a logging mailer
   for development).
+- Guests: anyone can play without registering. `POST /guest` with a
+  nickname starts a guest session (same cookie, no password or email),
+  which expires after 24 hours of inactivity. The session holds
+  `Identity::Account(id)` or `Identity::Guest { id, nickname }`; the room
+  only sees a `PlayerId` and a display name.
+  - Nicknames: 3-15 letters or digits, unique among players in the room,
+    and not equal (ignoring case) to a registered username, so guests can't
+    pose as account holders. Guests are shown with a guest badge.
+  - Guest creation and chat are rate-limited per IP, since guests cost
+    nothing to create.
+  - Guests can join and play any room; they don't appear in stats or the
+    leaderboard.
 - Rooms: `RoomManager` creates any number of rooms (fixes B4 and B5). Each
   room is a tokio task that owns a `domain::Game` and takes commands over an
   mpsc channel, so there is no shared mutable state (fixes B2). Events go out
@@ -170,7 +190,8 @@ ricochet-robots/
 - All user-facing strings in one translation module, English and Croatian.
   Language comes from the saved preference, falling back to the browser
   language. Chat is rendered as text, never HTML.
-- Pages: login, register, lobby (room list), game, leaderboard.
+- Pages: login (with "Play as guest"), register, lobby (room list), game,
+  leaderboard.
 
 ## 4. Delivery plan
 
@@ -185,11 +206,11 @@ commits of at most ~200 lines of logic, each shipping its tests.
 | 3 | `feat/domain-round` | Targets, bidding order, `Round` state machine, `Game`, scoring, injected `Clock`/`Rng`. Table tests for each bidding rule. |
 | 4 | `feat/domain-board-validation` | `Solver` and `BoardValidator`; test that the fixed board passes and that broken boards (open edge, one-sided wall, unreachable target) fail. |
 | 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls. |
-| 6 | `feat/server-auth` | `AppState`, register, confirm, login, logout, session, CSRF, `Mailer` with EN/HR email templates, account locale; HTTP integration tests. |
+| 6 | `feat/server-auth` | `AppState`, register, confirm, login, logout, guest sessions with nickname rules and rate limits, session, CSRF, `Mailer` with EN/HR email templates, account locale; HTTP integration tests. |
 | 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game`; tests drive commands through a full round without a network. |
 | 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients. |
-| 8 | `feat/web-auth-lobby` | Login, register, lobby, leaderboard pages; i18n module. |
-| 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with two browser contexts playing a round. |
+| 8 | `feat/web-auth-lobby` | Login (with "Play as guest"), register, lobby, leaderboard pages; i18n module. |
+| 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with a registered player and a guest playing a round. |
 | 10 | `chore/remove-legacy` | Delete `legacy/`, `clear_log_files.py`; Dockerfile and README with run and test commands. |
 | later | `feat/domain-quadrants` | Quadrant set and rotation, random boards, each checked by `BoardValidator`. |
 | later | `chore/hosting` | Pick a host (investigation pending) and add deployment. |
@@ -206,9 +227,10 @@ app keeps working until phase 10.
 | UI language | English and Croatian |
 | Board | The single fixed board for now; random quadrant boards only after `BoardValidator` exists |
 | Sign-up and email confirmation | Kept, reimplemented in Rust |
+| Guest play | Allowed without registration; guests are left out of stats |
 | Leaked data | Purged from git history; secret scanning added |
 | Hosting | Undecided; investigate later. The Dockerfile in phase 10 stays host-agnostic. |
-| Existing accounts and stats | **Open.** The legacy MySQL ran on a university server. Default: start fresh. Alternative: a one-off import into SQLite in phase 5, accepting the legacy bcrypt hashes at login and rehashing to argon2id. |
+| Existing accounts and stats | Start fresh; nothing is imported from the legacy MySQL |
 
 ## 6. Secrets policy
 

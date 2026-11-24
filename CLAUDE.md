@@ -21,6 +21,7 @@ extend the PHP code beyond fixes needed to keep it running.
 - Database: SQLite.
 - User-facing text in English and Croatian, via the translation module.
 - One fixed board for now; any new board must pass `BoardValidator`.
+- Guests can play without an account; they are left out of stats.
 
 ## Secrets
 
@@ -32,7 +33,7 @@ Read config from environment variables and document names in
 
 Every change reaches `main` through a pull request, including
 `chore: update agent standards` bumps (they may ride along in the current
-PR as their own commit).
+PR as their own commit; this overrides "one topic per branch" for them).
 
 1. Push a `<type>/<kebab>` branch and open a PR against `main`.
 2. Review it with three independent reviewer subagents, each with its own
