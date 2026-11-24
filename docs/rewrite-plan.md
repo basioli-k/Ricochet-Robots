@@ -1,6 +1,6 @@
 # Audit and rewrite plan
 
-Status: proposal. Measured against `.agents/standards/standards/engineering.md`.
+Status: decisions agreed (section 5). Measured against `.agents/standards/standards/engineering.md`.
 
 ## 1. What exists today
 
@@ -28,7 +28,7 @@ Severity: **C** critical, **H** high, **M** medium, **L** low.
 | # | Sev | Where | Problem |
 |---|-----|-------|---------|
 | S1 | C | `app/dajLog.php`, `app/ocistiLog.php` | `filename`/`filenames` come straight from the query string. With `../` paths, anyone can read or empty any file the web server can both read and write (the scripts check both), e.g. PHP sources holding the DB credentials on a typical shared-host setup. No session check. |
-| S2 | C | `app/database/database.class.php`, `seed_tables.php` | Database host, user and password, plus real people's names, emails and plaintext passwords, are committed and remain in git history. Treat them as leaked: rotate them, and decide whether to purge history. |
+| S2 | C | `app/database/database.class.php`, `seed_tables.php` | Database credentials and real people's emails and plaintext passwords were committed. **Done:** redacted from all history with `git filter-repo`; credentials now come from the environment; gitleaks runs in pre-commit and CI (see section 6). Still treat the old values as leaked and change them. |
 | S3 | H | `app/updatajRezultate.php`, `app/updateBaze.php` | The client reports its own score (`?username=X&bodovi=N`), and anyone can call `updateBaze.php` any number of times. Points and stats can be forged for any player. |
 | S4 | H | `app/saljiPoruku.php`, `gameplay.js:588` | Stored XSS: the chat message is stored as HTML and inserted with `.append()`. The sender name `ime` comes from the request, so players can also impersonate each other. |
 | S5 | H | `controller/statsController.php`, `Model::order_by` | SQL injection: `btn_stats` from POST goes into `ORDER BY` unescaped. |
@@ -93,8 +93,12 @@ ricochet-robots/
 
 - Value types: `Position`, `Direction`, `RobotColor`, `Symbol`, `Target`.
 - `Board`: walls stored as per-cell bitflags; the builder sets both sides of
-  a wall so B6 cannot recur. Built from four quadrants with rotation, as in
-  the physical game; the current board becomes a fixture.
+  a wall so B6 cannot recur. For now there is one board: the current fixed
+  layout, ported as data. Random quadrant boards come later, once boards can
+  be verified (below).
+- `BoardValidator`: checks a board is legal (closed outer walls, blocked
+  centre, mirrored walls, one cell per target, every target reachable by its
+  robot from the start position). Any new board must pass it before use.
 - `Board::slide(robots, robot, dir) -> Position`: the one movement function,
   used by server validation, client preview and the solver.
 - `Round` state machine: `Bidding` -> `Demonstrating { queue }` ->
@@ -103,8 +107,7 @@ ricochet-robots/
 - `Game`: shuffled target deck, scores, game-over.
 - Injected `Clock` and `Rng` traits so timers and shuffles are
   deterministic in tests.
-- Optional: BFS `Solver`, used in tests (every generated target is solvable)
-  and later for hints.
+- BFS `Solver`, used by `BoardValidator` and later for hints.
 
 ### `storage` crate
 
@@ -113,13 +116,14 @@ ricochet-robots/
 - Store finished games (`games`, `game_players`) and compute stats with
   queries instead of incrementing counters, so B1-style double counting
   can't corrupt data, and the leaderboard sort is a closed enum (fixes S5).
-- SQLite by default (one file, easy to deploy); the trait keeps Postgres open.
+- SQLite (one file, easy to deploy); the trait keeps other databases open.
 
 ### `server` crate
 
 - `axum` + `tokio`, `tracing`, `thiserror` errors mapped to HTTP responses
   without leaking internals.
-- Auth: argon2id hashes, `tower-sessions` cookie (HttpOnly, SameSite),
+- Auth (sign-up, email confirmation, login, logout; replaces the PHP
+  controllers): argon2id hashes, `tower-sessions` cookie (HttpOnly, SameSite),
   CSRF token on forms, email confirmation tokens from a CSPRNG with an
   expiry, sent through a `Mailer` trait (SMTP via `lettre`; a logging mailer
   for development).
@@ -139,15 +143,17 @@ ricochet-robots/
   exactly once, when the room's game ends.
 - Protocol types exported to TypeScript with `ts-rs` so client and server
   can't drift.
+- All configuration and secrets from environment variables (`.env` locally,
+  git-ignored; `.env.example` documents the names).
 
 ### `web` client
 
-- TypeScript `strict`, Vite, ESLint, Vitest, Playwright.
+- Svelte 5 + TypeScript `strict`, built with Vite as a static SPA that the
+  Rust server serves. ESLint, `svelte-check`, Vitest, Playwright.
 - Board drawn from server state (CSS grid or SVG); walls and robots come from
   data, never from computed styles. Keyboard (WASD and arrows) and click
   controls, plus the robot-slide animation from `todos.txt`.
-- All user-facing strings in one translation module (`en`, plus `hr` if
-  wanted). Chat rendered as text, never HTML.
+- All user-facing strings in one translation module, English and Croatian. Chat rendered as text, never HTML.
 - Pages: login, register, lobby (room list), game, leaderboard.
 
 ## 4. Delivery plan
@@ -157,34 +163,46 @@ commits of at most ~200 lines of logic, each shipping its tests.
 
 | Phase | Branch | Content |
 |-------|--------|---------|
-| 0 | `chore/agent-standards` | Standards submodule, `CLAUDE.md`, this plan. **Rotate the leaked DB credentials now**, whatever else happens. |
-| 1 | `chore/workspace-skeleton` | Cargo workspace, `web/` Vite scaffold, CI (`cargo fmt --check`, `clippy -D warnings`, `cargo test`, `npm run lint`/`typecheck`/`test`). Move PHP to `legacy/`; untrack `.log` files. |
+| 0 | `chore/agent-standards` | Standards submodule, `CLAUDE.md`, this plan, history redaction, secret scanning. Done. |
+| 1 | `chore/workspace-skeleton` | Cargo workspace, `web/` Svelte + Vite scaffold, CI (`cargo fmt --check`, `clippy -D warnings`, `cargo test`, `npm run lint`/`typecheck`/`test`). Move PHP to `legacy/`; untrack `.log` files. |
 | 2 | `feat/domain-board` | Value types, `Board` with mirrored walls, `slide`, the current board as fixture; property tests (a robot never crosses a wall; sliding twice in one direction is a no-op). |
 | 3 | `feat/domain-round` | Targets, bidding order, `Round` state machine, `Game`, scoring, injected `Clock`/`Rng`. Table tests for each bidding rule. |
-| 4 | `feat/domain-quadrants` | Quadrant set and rotation, random board and robot placement; solver-backed test that every target is reachable. |
+| 4 | `feat/domain-board-validation` | `Solver` and `BoardValidator`; test that the fixed board passes and that broken boards (open edge, one-sided wall, unreachable target) fail. |
 | 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls. |
 | 6 | `feat/server-auth` | Register, confirm, login, logout, session, CSRF, `Mailer`; HTTP integration tests. |
 | 7 | `feat/server-rooms` | `RoomManager`, room actor, WebSocket protocol, `ts-rs` export; tests drive two fake clients through a full round. |
 | 8 | `feat/web-auth-lobby` | Login, register, lobby, leaderboard pages; i18n module. |
 | 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with two browser contexts playing a round. |
 | 10 | `chore/remove-legacy` | Delete `legacy/`, `clear_log_files.py`; Dockerfile and README with run and test commands. |
+| later | `feat/domain-quadrants` | Quadrant set and rotation, random boards, each checked by `BoardValidator`. |
+| later | `chore/hosting` | Pick a host (investigation pending) and add deployment. |
 
 Phases 2-5 have no dependency on the web client and can land first; the PHP
 app keeps working until phase 10.
 
-## 5. Decisions needed
+## 5. Decisions
 
-Defaults in bold; the plan proceeds on them unless changed.
+| Topic | Decision |
+|-------|----------|
+| Database | SQLite |
+| Client | Svelte 5 + TypeScript (strict) |
+| UI language | English and Croatian |
+| Board | The single fixed board for now; random quadrant boards only after `BoardValidator` exists |
+| Sign-up and email confirmation | Kept, reimplemented in Rust |
+| Leaked data | Purged from git history; secret scanning added |
+| Hosting | Undecided; investigate later. The Dockerfile in phase 10 stays host-agnostic. |
 
-1. Database: **SQLite** or Postgres?
-2. Client: **plain TypeScript with small modules**, or a framework (React,
-   Svelte)? The UI is five small pages and one board, so a framework is
-   optional.
-3. UI language: **English, with Croatian as a second locale**, or English only?
-4. Board: **random quadrants like the physical game**, or keep the single
-   fixed board?
-5. Keep email confirmation on registration? **Yes**, with a log-only mailer in
-   development.
-6. Purge the leaked credentials and personal data from git history
-   (rewrites history, needs a force push), or only rotate them?
-7. Deployment target (single VPS with Docker is assumed).
+## 6. Secrets policy
+
+- No credentials, tokens, personal data or real user accounts in the
+  repository, including tests and seed data. Seeds create demo accounts on
+  `example.invalid` with generated passwords.
+- Configuration comes from environment variables; `.env` is git-ignored and
+  `.env.example` lists the names with empty or dummy values.
+- `.gitleaks.toml` extends the default gitleaks rules with patterns this repo
+  has leaked before (inline PDO credentials, literal passwords in seeds,
+  database URLs with passwords).
+- Enforced twice: the gitleaks pre-commit hook (`pre-commit install`) and the
+  `Secret scan` GitHub Actions workflow on every push and pull request.
+- If something leaks anyway: rotate it first, then redact history with
+  `git filter-repo --replace-text` and force-push.
