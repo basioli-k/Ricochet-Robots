@@ -12,6 +12,7 @@ workspace = true
 async-trait = "0.1.92"
 axum = "0.8.9"
 domain.workspace = true
+openidconnect = "4.1.0"
 serde = { version = "1.0.229", features = ["derive"] }
 storage.workspace = true
 thiserror = "2.0.21"

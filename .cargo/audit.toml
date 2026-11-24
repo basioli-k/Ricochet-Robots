@@ -1,0 +1,12 @@
+# cargo audit configuration. Every ignore needs a reason and is revisited
+# whenever the dependency that forces it changes.
+
+[advisories]
+ignore = [
+    # RUSTSEC-2023-0071, rsa "Marvin" timing side channel. Fixed in rsa 0.10,
+    # but openidconnect 4.1 requires rsa 0.9. The attack recovers a private key
+    # by timing private-key operations; the server only verifies Google's ID
+    # tokens with Google's public keys and never holds an RSA private key, so
+    # it is not exploitable here. Drop this once openidconnect moves to rsa 0.10.
+    "RUSTSEC-2023-0071",
+]
