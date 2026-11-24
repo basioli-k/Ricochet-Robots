@@ -18,10 +18,14 @@ function seed_table_users()
 		$st = $db->prepare( 'INSERT INTO ricochet_robots_players(username, password_hash, email, registration_sequence, has_registered, ' . 
                             'games_played, tokens_won, games_won) VALUES (:username, :password, :email, \'abc\', \'1\', \'0\', \'0\', \'0\')' );
 
-		$st->execute( array( 'username' => 'avirovic', 'password' => password_hash( 'REDACTED', PASSWORD_DEFAULT ), "email" => "player1@example.invalid" ) );
-		$st->execute( array( 'username' => 'basioli', 'password' => password_hash( 'REDACTED', PASSWORD_DEFAULT ), "email" => "player2@example.invalid") );
-		$st->execute( array( 'username' => 'duric', 'password' => password_hash( 'REDACTED', PASSWORD_DEFAULT ), "email" => "player3@example.invalid" ) );
-		$st->execute( array( 'username' => 'igrac', 'password' => password_hash( 'igrac', PASSWORD_DEFAULT ), "email" => "fake@mail.hr" ) );
+		// Demo accounts only. Passwords are random and printed once; never seed real people's data.
+		foreach( array( 'alice', 'bob', 'igrac' ) as $username )
+		{
+			$password = bin2hex( random_bytes( 8 ) );
+			$st->execute( array( 'username' => $username, 'password' => password_hash( $password, PASSWORD_DEFAULT ),
+				"email" => $username . "@example.invalid" ) );
+			echo $username . ': ' . $password . '<br />';
+		}
 	}
 	catch( PDOException $e ) { exit( "PDO error [insert dz2_users]: " . $e->getMessage() ); }
 
