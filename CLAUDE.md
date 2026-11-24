@@ -21,7 +21,7 @@ extend the PHP code beyond fixes needed to keep it running.
 - Database: SQLite.
 - User-facing text in English and Croatian, via the translation module.
 - One fixed board for now; any new board must pass `BoardValidator`.
-- Guests can play without an account; they are left out of stats.
+- Guests can play without an account; any game with a guest is unranked.
 
 ## Secrets
 

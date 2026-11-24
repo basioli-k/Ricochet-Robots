@@ -125,9 +125,14 @@ ricochet-robots/
 - Store finished games (`games`, `game_players`) and compute stats with
   queries instead of incrementing counters, so B1-style double counting
   can't corrupt data, and the leaderboard sort is a closed enum (fixes S5).
-- `game_players.account_id` is nullable: guests are stored with their
-  nickname only, so final scores stay complete. Stats and the leaderboard
-  count accounts only.
+- `game_players` keeps every participant so final scores stay complete:
+  `account_id` for accounts, or `is_guest = true` with `guest_name` for
+  guests. History is attributed only by `account_id`, never by name, so a
+  later account with a guest's old nickname inherits nothing.
+- `games.ranked` is set when the game is stored: true only if every player
+  had an account and there were at least two. Stats and the leaderboard
+  read ranked games only, so guests can't be used to farm wins (see
+  Guests). The winner is the highest score; ties all count as wins.
 - Fresh database: no data is imported from the legacy MySQL.
 - SQLite (one file, easy to deploy); the trait keeps other databases open.
 
@@ -137,7 +142,8 @@ ricochet-robots/
   without leaking internals.
 - Dependencies injected through an `AppState` built in `main`:
   `Arc<dyn PlayerRepository>`, `Arc<dyn GameResultRepository>`,
-  `Arc<dyn Mailer>`, `Arc<dyn Clock>`, `Arc<dyn Rng>`. Tests build it with
+  `Arc<dyn Mailer>`, `Arc<dyn Clock>`, `Arc<dyn Rng>`,
+  `Arc<dyn RateLimiter>` (driven by the `Clock`). Tests build it with
   in-memory and fake implementations.
 - Text: errors and events carry stable codes (e.g. `username_taken`), never
   prose; the client translates them. The only server-rendered text is email,
@@ -146,21 +152,33 @@ ricochet-robots/
   can't drift. Guests get no email; their language lives in the client.
 - Auth (sign-up, email confirmation, login, logout; replaces the PHP
   controllers): argon2id hashes, `tower-sessions` cookie (HttpOnly, SameSite),
-  CSRF token on forms, email confirmation tokens from a CSPRNG with an
-  expiry, sent through a `Mailer` trait (SMTP via `lettre`; a logging mailer
+  CSRF token on every state-changing request (including `POST /guest`),
+  session ID cycled on login, registration and guest start (prevents
+  session fixation), expired sessions purged by the store's expiry task,
+  email confirmation tokens from a CSPRNG with an expiry, sent through a `Mailer` trait (SMTP via `lettre`; a logging mailer
   for development).
 - Guests: anyone can play without registering. `POST /guest` with a
   nickname starts a guest session (same cookie, no password or email),
   which expires after 24 hours of inactivity. The session holds
   `Identity::Account(id)` or `Identity::Guest { id, nickname }`; the room
-  only sees a `PlayerId` and a display name.
-  - Nicknames: 3-15 letters or digits, unique among players in the room,
-    and not equal (ignoring case) to a registered username, so guests can't
-    pose as account holders. Guests are shown with a guest badge.
-  - Guest creation and chat are rate-limited per IP, since guests cost
-    nothing to create.
-  - Guests can join and play any room; they don't appear in stats or the
-    leaderboard.
+  only sees a `PlayerId`, a display name and an `is_guest` flag.
+  - `PlayerId` is a random UUID for both kinds, so a guest's ID can never
+    equal an account's.
+  - Names: one rule for usernames and nicknames, ASCII `[A-Za-z0-9]{3,15}`
+    (no Unicode, so no lookalike letters). A nickname must be unique in
+    the room and must not match a registered username, ignoring case;
+    checked at guest start and again on every room join. Guests are always
+    shown with a guest badge (`is_guest` in `Snapshot` and player lists),
+    so a guest whose name is registered later still can't pass as that
+    account.
+  - Guests can create and join rooms, but games with any guest are
+    unranked (see storage), so guests can't inflate anyone's stats.
+- Abuse limits, all through `RateLimiter` and configurable (defaults:
+  5 guest starts and 5 room creations per IP per 10 minutes, 1 chat
+  message per second per player, 10 bids or moves per second per player,
+  at most 200 open rooms). Rooms with no connected players are closed
+  after 10 minutes. Behind a reverse proxy the client IP comes from a
+  trusted `X-Forwarded-For` hop, configured with hosting.
 - Rooms: `RoomManager` creates any number of rooms (fixes B4 and B5). Each
   room is a tokio task that owns a `domain::Game` and takes commands over an
   mpsc channel, so there is no shared mutable state (fixes B2). Events go out
@@ -200,15 +218,16 @@ commits of at most ~200 lines of logic, each shipping its tests.
 
 | Phase | Branch | Content |
 |-------|--------|---------|
-| 0 | `chore/agent-standards` | Standards submodule, `CLAUDE.md`, this plan, history redaction, secret scanning. This PR. |
+| 0 | `chore/agent-standards` | Standards submodule, `CLAUDE.md`, this plan, history redaction, secret scanning. Done in PR #5. |
 | 1 | `chore/workspace-skeleton` | Cargo workspace, `web/` Svelte + Vite scaffold, CI (`cargo fmt --check`, `clippy -D warnings`, `cargo test`, `npm run lint`/`typecheck`/`test`). Move PHP to `legacy/`; untrack `.log` files. |
 | 2 | `feat/domain-board` | Value types, `Board` with mirrored walls, `slide`, the current board as fixture; property tests (a robot never crosses a wall; sliding twice in one direction is a no-op). |
 | 3 | `feat/domain-round` | Targets, bidding order, `Round` state machine, `Game`, scoring, injected `Clock`/`Rng`. Table tests for each bidding rule. |
 | 4 | `feat/domain-board-validation` | `Solver` and `BoardValidator`; test that the fixed board passes and that broken boards (open edge, one-sided wall, unreachable target) fail. |
-| 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls. |
-| 6 | `feat/server-auth` | `AppState`, register, confirm, login, logout, guest sessions with nickname rules and rate limits, session, CSRF, `Mailer` with EN/HR email templates, account locale; HTTP integration tests. |
-| 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game`; tests drive commands through a full round without a network. |
-| 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients. |
+| 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls, including: a game with a guest stores the guest's score and is unranked; stats count ranked games only; ties count as wins. |
+| 6a | `feat/server-auth` | `AppState`, register, confirm, login, logout, session (ID cycling, expiry purge), CSRF, `Mailer` with EN/HR email templates, account locale; HTTP integration tests. |
+| 6b | `feat/server-guests` | Guest sessions and `RateLimiter`; tests: name rule (length, non-ASCII rejected), clash with a username in any case, 24-hour expiry with a fake clock, each rate limit, CSRF on `POST /guest`. |
+| 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game`, room caps and idle closing; tests drive commands through a full round without a network, and reject a duplicate nickname in a room. |
+| 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients, one of them a guest who finishes a round and is flagged `is_guest`. |
 | 8 | `feat/web-auth-lobby` | Login (with "Play as guest"), register, lobby, leaderboard pages; i18n module. |
 | 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with a registered player and a guest playing a round. |
 | 10 | `chore/remove-legacy` | Delete `legacy/`, `clear_log_files.py`; Dockerfile and README with run and test commands. |
@@ -227,7 +246,7 @@ app keeps working until phase 10.
 | UI language | English and Croatian |
 | Board | The single fixed board for now; random quadrant boards only after `BoardValidator` exists |
 | Sign-up and email confirmation | Kept, reimplemented in Rust |
-| Guest play | Allowed without registration; guests are left out of stats |
+| Guest play | Allowed without registration; games with a guest are unranked |
 | Leaked data | Purged from git history; secret scanning added |
 | Hosting | Undecided; investigate later. The Dockerfile in phase 10 stays host-agnostic. |
 | Existing accounts and stats | Start fresh; nothing is imported from the legacy MySQL |

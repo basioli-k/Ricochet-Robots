@@ -21,6 +21,11 @@ the rules.
 1. Set `RR_DB_DSN`, `RR_DB_USER` and `RR_DB_PASSWORD` in the web server
    (see `.env.example` for Apache and PHP-FPM examples).
 2. Export the same variables in your shell (the web server settings don't
-   reach the command line), then create tables and demo accounts:
-   `php app/database/create_tables.php && php app/database/seed_tables.php`
-   (the seed prints the generated passwords).
+   reach the command line), then create tables and demo accounts once:
+   ```bash
+   cp .env.example .env   # fill in the values
+   set -a; . ./.env; set +a
+   php app/database/create_tables.php && php app/database/seed_tables.php
+   ```
+   The seed prints the generated passwords. A second run stops at
+   `create_tables.php` because the table already exists.
