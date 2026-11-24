@@ -11,6 +11,10 @@ describe('pickLocale', () => {
     expect(pickLocale(['de-DE', 'en-GB', 'hr'])).toBe('en');
   });
 
+  it('ignores names inherited from Object.prototype', () => {
+    expect(pickLocale(['constructor', '__proto__', 'toString-HR'])).toBe('en');
+  });
+
   it('falls back to English', () => {
     expect(pickLocale(['de', 'fr'])).toBe('en');
     expect(pickLocale([])).toBe('en');

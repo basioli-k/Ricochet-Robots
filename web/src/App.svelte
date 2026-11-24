@@ -3,6 +3,7 @@
 
   const locale = pickLocale(navigator.languages);
   document.documentElement.lang = locale;
+  document.title = translate(locale, 'appTitle');
 </script>
 
 <main>
