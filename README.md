@@ -49,11 +49,11 @@ Only releases at least 14 days old are allowed (see `CLAUDE.md`). Check with
 
 - npm: `npm install --save-dev --before=YYYY-MM-DD pkg@major`, with the date
   14 days ago.
-- Cargo: add with an explicit old-enough version, `cargo add name@1.2.3`;
-  `cargo add name` writes the newest release as the minimum requirement, and
-  `cargo update --precise` can't go below a requirement. For transitive
-  crates the check flags, `cargo update -p name@new --precise older` works
-  as long as no `Cargo.toml` requirement forbids the older version.
+- Cargo: `cargo add name@1.2.3` with an old-enough version (plain
+  `cargo add name` makes the newest release the minimum, and nothing can be
+  locked below a minimum). It still locks the newest compatible release, so
+  follow with `cargo update -p name --precise 1.2.3`; do the same for any
+  transitive crate the check flags.
 - Security fixes newer than that go in `.dependency-age-allow` with the
   advisory ID; the check notes entries that are no longer needed.
 - GitHub Actions are pinned to the commit SHA of a release at least 14 days
