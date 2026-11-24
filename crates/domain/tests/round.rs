@@ -172,8 +172,8 @@ fn only_the_demonstrator_may_act() {
     assert_eq!(round, before, "refused actions must not change the round");
 }
 
-/// Regression (PR #11 review): every move counts against the bid, not just
-/// the first, so a bid of several moves is used up move by move.
+/// Every move counts against the bid, not just the first, so a bid of
+/// several moves is used up move by move.
 #[test]
 fn a_multi_move_bid_is_used_up_move_by_move() {
     let mut round = demonstrating(RED_MOON, &[(ANA, 2)]);
@@ -239,6 +239,7 @@ fn actions_outside_their_phase_are_refused() {
         Err(RoundError::WrongPhase)
     );
     solved.move_robot(&board(), ANA, Red, Up).unwrap();
+    let finished = solved.clone();
     assert_eq!(
         solved.move_robot(&board(), ANA, Red, Left),
         Err(RoundError::WrongPhase)
@@ -248,4 +249,8 @@ fn actions_outside_their_phase_are_refused() {
         Err(RoundError::WrongPhase)
     );
     assert_eq!(solved.abandon(), Err(RoundError::WrongPhase));
+    assert_eq!(
+        solved, finished,
+        "refused actions must not change the round"
+    );
 }

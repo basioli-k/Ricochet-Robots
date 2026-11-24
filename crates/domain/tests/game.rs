@@ -161,8 +161,8 @@ fn close(game: &mut Game, bids: &[(PlayerId, u8)]) {
     game.close_bidding(Timestamp(WINDOW)).unwrap();
 }
 
-/// Regression (PR #11 review): robots carry over, so a target can come up
-/// already completed; it must not be winnable by any single move.
+/// Robots carry over, so a target can come up already completed; it must
+/// not be winnable by any single move.
 #[test]
 fn a_target_already_completed_is_put_back_not_played() {
     let mut game = Game::new(board3(), robots(), WINDOW, &mut InOrder).unwrap();
@@ -176,6 +176,7 @@ fn a_target_already_completed_is_put_back_not_played() {
     game.next_round().unwrap();
     // Only the vortex is left, still completed: nothing playable remains.
     assert!(game.is_over());
+    assert_eq!(game.targets_left(), 0);
     assert_eq!(game.leaders(), [ANA]);
 }
 
@@ -226,4 +227,20 @@ impl Shuffle for Corrupting {
 #[should_panic(expected = "Shuffle must only reorder the deck")]
 fn a_shuffle_that_corrupts_the_deck_is_caught_in_debug_builds() {
     let _ = Game::new(board(), robots(), WINDOW, &mut Corrupting);
+}
+
+/// A target put back because it was completed is dealt again once the
+/// robots have moved off it.
+#[test]
+fn a_put_back_target_is_dealt_once_playable_again() {
+    let mut game = Game::new(board3(), robots(), WINDOW, &mut InOrder).unwrap();
+    close(&mut game, &[(ANA, 2)]);
+    game.move_robot(ANA, Blue, Up).unwrap(); // Blue parks on the vortex
+    game.move_robot(ANA, Red, Up).unwrap();
+    game.next_round().unwrap();
+    assert_eq!(game.round().target(), BLUE_STAR);
+    close(&mut game, &[(BOB, 1)]);
+    game.move_robot(BOB, Blue, Direction::Down).unwrap(); // Blue leaves the vortex
+    game.next_round().unwrap();
+    assert_eq!(game.round().target(), Target::Vortex);
 }

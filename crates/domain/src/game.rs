@@ -44,7 +44,7 @@ impl From<RoundError> for GameError {
     }
 }
 
-/// Plays every target on the board once, in shuffled order. Robots carry
+/// Plays each target on the board at most once, in shuffled order. Robots carry
 /// over between rounds. Each solved target scores one token for its winner.
 ///
 /// A target that the robots already complete when it comes up would be won
@@ -103,10 +103,11 @@ impl Game {
         &self.round
     }
 
-    /// Targets left after the current one.
+    /// Targets left after the current one; 0 once the game is over, even if
+    /// it ended early with unplayable targets.
     #[must_use]
     pub fn targets_left(&self) -> usize {
-        self.deck.len()
+        if self.over { 0 } else { self.deck.len() }
     }
 
     #[must_use]
