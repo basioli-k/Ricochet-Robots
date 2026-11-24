@@ -4,6 +4,7 @@
 //! unit-tested and reused by the server, the solver and client previews.
 
 mod board;
+pub mod fixed_board;
 mod geometry;
 mod movement;
 mod pieces;
