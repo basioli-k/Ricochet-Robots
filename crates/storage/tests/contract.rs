@@ -3,7 +3,7 @@
 use domain::{PlayerId, Timestamp};
 use storage::{
     Account, FinishedGame, GameResultRepository, InMemoryStore, LeaderboardSort, Locale,
-    Participant, PlayerRepository, PlayerStats, Seat, StorageError,
+    Participant, PlayerRepository, PlayerStats, Seat, SqliteStore, StorageError,
 };
 
 /// Both repositories, as the server will hold them.
@@ -66,7 +66,11 @@ async fn finds_accounts_by_id_and_username_ignoring_case(store: impl Store) {
 
 async fn usernames_and_emails_are_unique_ignoring_case(store: impl Store) {
     store.create(&account(1, "ana")).await.unwrap();
-    let same_name = account(2, "ANA");
+    // Each case collides on one field only.
+    let same_name = Account {
+        email: "other@example.invalid".into(),
+        ..account(2, "ANA")
+    };
     assert!(matches!(
         store.create(&same_name).await,
         Err(StorageError::UsernameTaken)
@@ -168,7 +172,13 @@ async fn rejects_unknown_accounts_and_duplicate_seats(store: impl Store) {
 
 async fn the_leaderboard_sorts_and_limits(store: impl Store) {
     with_players(&store).await;
-    store.create(&account(4, "dan")).await.unwrap(); // never plays: not listed
+    store.create(&account(4, "dan")).await.unwrap(); // no ranked games: not listed
+    // Unranked games (here with a guest) never reach the leaderboard.
+    let with_guest = [
+        (Seat::Account(PlayerId::new(4)), 9),
+        (Seat::Guest("visitor".into()), 0),
+    ];
+    store.record(&game(&with_guest)).await.unwrap();
     store
         .record(&game(&[(Seat::Account(ANA), 1), (Seat::Account(BOB), 4)]))
         .await
@@ -246,3 +256,4 @@ macro_rules! contract {
 }
 
 contract!(in_memory, InMemoryStore::new());
+contract!(sqlite, SqliteStore::in_memory().await.unwrap());

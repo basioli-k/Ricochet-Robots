@@ -4,6 +4,7 @@
 mod memory;
 mod model;
 mod repository;
+mod sqlite;
 
 pub use memory::InMemoryStore;
 pub use model::{
@@ -11,3 +12,4 @@ pub use model::{
     Seat,
 };
 pub use repository::{GameResultRepository, PlayerRepository, StorageError};
+pub use sqlite::SqliteStore;

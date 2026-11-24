@@ -28,7 +28,8 @@ pub enum StorageError {
 pub trait PlayerRepository: Send + Sync {
     /// # Errors
     /// [`StorageError::UsernameTaken`] or [`StorageError::EmailTaken`] when
-    /// either matches an existing account ignoring case.
+    /// either matches an existing account ignoring case (either one when
+    /// both do).
     async fn create(&self, account: &Account) -> Result<(), StorageError>;
 
     /// # Errors
