@@ -240,7 +240,7 @@ commits of at most ~200 lines of logic, each shipping its tests.
 | 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients, one of them a guest who finishes a round and is flagged `is_guest`, plus the chat and bid/move rate limits. |
 | 8 | `feat/web-auth-lobby` | Login (with "Play as guest"), register, lobby, leaderboard pages; extend the i18n module (saved language preference). |
 | 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with a registered player and a guest playing a round. |
-| 10 | `chore/remove-legacy` | Delete `legacy/`; Dockerfile and README with run and test commands. |
+| 10 | `chore/remove-legacy` | Delete `legacy/`, first moving `legacy/tools/board_oracle.py` to `tools/` with a copy of the board literal it reads, so the fixed-board test values stay regenerable; Dockerfile and README with run and test commands. |
 | later | `feat/domain-quadrants` | Quadrant set and rotation, random boards, each checked by `BoardValidator`. |
 | later | `chore/hosting` | Pick a host (investigation pending) and add deployment. |
 

@@ -1,6 +1,6 @@
 use RobotColor::{Blue, Green, Red, Yellow};
 use Symbol::{Gear, Moon, Planet, Star};
-use domain::{BOARD_SIZE, Direction, Position, RobotColor, Symbol, Target, fixed_board};
+use domain::{BOARD_SIZE, Direction, Position, RobotColor, Robots, Symbol, Target, fixed_board};
 
 fn pos(row: u8, col: u8) -> Position {
     Position::new(row, col).unwrap()
@@ -135,5 +135,103 @@ fn move_sequences_match_the_legacy_game() {
             });
         let actual = RobotColor::ALL.map(|robot| end.position(robot));
         assert_eq!(actual, expected, "after {moves:?}");
+    }
+}
+
+/// From every free cell, alone on the board, where a robot stops in each
+/// direction. One hex digit per cell: the stop row for Up/Down, the stop
+/// column for Left/Right. Pins every wall that affects movement. Expected
+/// values from `legacy/tools/board_oracle.py`.
+#[test]
+fn every_stop_matches_the_legacy_game() {
+    #[rustfmt::skip]
+    let tables: [(Direction, [&str; 16]); 4] = [
+        (Direction::Up, [
+        "0000000000000000",
+        "0000100000000010",
+        "0200100000000010",
+        "0200100000030010",
+        "0200104000030014",
+        "0200104000030014",
+        "6200104000030014",
+        "6207104770730714",
+        "6207184770730714",
+        "6207184990730714",
+        "6a07184990730a14",
+        "6a07b84990730a14",
+        "ca07b8499c730a1c",
+        "ca07bd499c730adc",
+        "ca0ebd499ce30adc",
+        "ca0ebd499ce30adc",
+    ]),
+        (Direction::Down, [
+        "51f607366b62f603",
+        "51f6a7366b62f6c3",
+        "59f6a7366b62f6c3",
+        "59f6a7366b6ff6c3",
+        "59f6a7f66b6ff6cb",
+        "59f6a7f66b6ff6cb",
+        "b9f6a7f66b6ff6cb",
+        "b9fda7f88bdff9cb",
+        "b9fdacf88bdff9cb",
+        "b9fdacfffbdff9cb",
+        "bffdacfffbdfffcb",
+        "bffdfcfffbdfffcb",
+        "fffdfcffffdfffcf",
+        "fffdffffffdfffff",
+        "ffffffffffffffff",
+        "ffffffffffffffff",
+    ]),
+        (Direction::Left, [
+        "0022222222aaaaaa",
+        "00004444444444ee",
+        "00222222222bbbbb",
+        "0000000777777777",
+        "0000000000000000",
+        "0000000000000000",
+        "00033333333333ee",
+        "00000007799bbbbb",
+        "0000006779999999",
+        "0022222222222ddd",
+        "0000444444444444",
+        "0000000000aaaaaa",
+        "0000000000000000",
+        "000000666666666f",
+        "0003333333aaaaaa",
+        "000000077777cccc",
+    ]),
+        (Direction::Right, [
+        "1199999999ffffff",
+        "3333ddddddddddff",
+        "11aaaaaaaaafffff",
+        "6666666fffffffff",
+        "ffffffffffffffff",
+        "ffffffffffffffff",
+        "222dddddddddddff",
+        "666666688aafffff",
+        "555555688fffffff",
+        "11cccccccccccfff",
+        "3333ffffffffffff",
+        "9999999999ffffff",
+        "ffffffffffffffff",
+        "555555eeeeeeeeef",
+        "2229999999ffffff",
+        "6666666bbbbbffff",
+    ]),
+    ];
+    let board = fixed_board::board();
+    for (dir, rows) in tables {
+        for cell in Position::all().filter(|p| !board.is_blocked(*p)) {
+            // The other robots wait inside the blocked centre, out of the way.
+            let robots = Robots::new([cell, pos(7, 7), pos(7, 8), pos(8, 7)]).unwrap();
+            let stop = board.slide(&robots, RobotColor::Red, dir);
+            let digit = rows[usize::from(cell.row())].as_bytes()[usize::from(cell.col())];
+            let expected = u8::from_str_radix(std::str::from_utf8(&[digit]).unwrap(), 16).unwrap();
+            let actual = match dir {
+                Direction::Up | Direction::Down => stop.row(),
+                Direction::Left | Direction::Right => stop.col(),
+            };
+            assert_eq!(actual, expected, "{cell:?} {dir:?}");
+        }
     }
 }
