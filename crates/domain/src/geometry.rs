@@ -43,6 +43,12 @@ impl Position {
         Self::new(row, col)
     }
 
+    /// Row-major index in `0..BOARD_SIZE²`, for flat per-cell storage.
+    #[must_use]
+    pub(crate) fn index(self) -> usize {
+        usize::from(self.row) * usize::from(BOARD_SIZE) + usize::from(self.col)
+    }
+
     /// Every cell, row by row.
     pub fn all() -> impl Iterator<Item = Self> {
         (0..BOARD_SIZE).flat_map(|row| (0..BOARD_SIZE).map(move |col| Self { row, col }))
