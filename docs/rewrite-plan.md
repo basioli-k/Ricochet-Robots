@@ -5,6 +5,9 @@ Status: decisions agreed (section 5). Measured against
 
 ## 1. What exists today
 
+Paths in sections 1 and 2 are as audited; since phase 1 they live under
+`legacy/`.
+
 A PHP 7 MVC-ish app (`index.php` router, `controller/`, `model/`, `view/`)
 for accounts and stats, plus a multiplayer game built from:
 
@@ -230,9 +233,9 @@ commits of at most ~200 lines of logic, each shipping its tests.
 | 6b | `feat/server-guests` | Guest sessions and `RateLimiter`; tests: `RateLimiter` with a fake clock, the guest-start limit, name rule (length, non-ASCII rejected), clash with a username in any case, 24-hour expiry with a fake clock, CSRF on `POST /guest`. |
 | 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game`, room caps and idle closing; tests drive commands through a full round without a network, and cover a duplicate nickname in a room, the room-creation limit, the per-session/IP and global room caps, and idle closing with a fake clock. |
 | 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients, one of them a guest who finishes a round and is flagged `is_guest`, plus the chat and bid/move rate limits. |
-| 8 | `feat/web-auth-lobby` | Login (with "Play as guest"), register, lobby, leaderboard pages; i18n module. |
+| 8 | `feat/web-auth-lobby` | Login (with "Play as guest"), register, lobby, leaderboard pages; extend the i18n module (saved language preference). |
 | 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with a registered player and a guest playing a round. |
-| 10 | `chore/remove-legacy` | Delete `legacy/`, `clear_log_files.py`; Dockerfile and README with run and test commands. |
+| 10 | `chore/remove-legacy` | Delete `legacy/`; Dockerfile and README with run and test commands. |
 | later | `feat/domain-quadrants` | Quadrant set and rotation, random boards, each checked by `BoardValidator`. |
 | later | `chore/hosting` | Pick a host (investigation pending) and add deployment. |
 

@@ -28,8 +28,8 @@ extend the PHP code beyond fixes needed to keep it running.
 Run before every commit (CI runs the same):
 
 - Rust: `cargo fmt --all --check`,
-  `cargo clippy --workspace --all-targets -- -D warnings`,
-  `cargo test --workspace`
+  `cargo clippy --workspace --all-targets --locked -- -D warnings`,
+  `cargo test --workspace --locked`
 - Web, from `web/`: `npm run lint`, `npm run typecheck`, `npm test`,
   `npm run build`
 

@@ -23,13 +23,13 @@ itself on first use.
 
 ```bash
 cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
 ```
 
 ### Web client (`web/`)
 
-Needs Node.js 22 or newer.
+Needs Node.js 22.13 or newer.
 
 ```bash
 cd web
@@ -55,3 +55,11 @@ npm run build
    ```
    The seed prints the generated passwords. A second run stops at
    `create_tables.php` because the table already exists.
+
+Make `.env` unwritable by the web server user, or delete it after seeding:
+legacy endpoints can read or empty any file the server can both read and
+write, even outside the docroot (audit finding S1).
+
+The game keeps its state in `legacy/**/*.log`. They change while the app
+runs; don't commit those changes. To reset a stuck game, empty them with
+`cd legacy && python3 clear_log_files.py` (it only works from `legacy/`).
