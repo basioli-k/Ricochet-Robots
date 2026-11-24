@@ -155,8 +155,8 @@ ricochet-robots/
   CSRF token on every state-changing request (including `POST /guest`),
   session ID cycled on login, registration and guest start (prevents
   session fixation), expired sessions purged by the store's expiry task,
-  email confirmation tokens from a CSPRNG with an expiry, sent through a `Mailer` trait (SMTP via `lettre`; a logging mailer
-  for development).
+  email confirmation tokens from a CSPRNG with an expiry, sent through a
+  `Mailer` trait (SMTP via `lettre`; a logging mailer for development).
 - Guests: anyone can play without registering. `POST /guest` with a
   nickname starts a guest session (same cookie, no password or email),
   which expires after 24 hours of inactivity. The session holds
@@ -165,7 +165,8 @@ ricochet-robots/
   - `PlayerId` is a random UUID for both kinds, so a guest's ID can never
     equal an account's.
   - Names: one rule for usernames and nicknames, ASCII `[A-Za-z0-9]{3,15}`
-    (no Unicode, so no lookalike letters). A nickname must be unique in
+    (no Unicode, so no lookalike letters). Usernames are unique ignoring
+    case (`Alice` is rejected when `alice` exists). A nickname must be unique in
     the room and must not match a registered username, ignoring case;
     checked at guest start and again on every room join. Guests are always
     shown with a guest badge (`is_guest` in `Snapshot` and player lists),
@@ -174,12 +175,14 @@ ricochet-robots/
   - Guests can create and join rooms, but games with any guest are
     unranked (see storage), so guests can't inflate anyone's stats.
 - Abuse limits, all through `RateLimiter` and configurable (defaults:
-  5 guest starts and 5 room creations per IP per 10 minutes, 1 chat
-  message per second per player, 10 bids or moves per second per player,
-  at most 200 open rooms). Rooms with no connected players are closed
-  after 10 minutes. Behind a reverse proxy the client IP comes from a
+  5 guest starts and 5 room creations per IP per 10 minutes, at most 2
+  open rooms per session and per IP, 1 chat message per second per player,
+  10 bids or moves per second per player, at most 200 open rooms). Rooms
+  with no connected players are closed after 10 minutes. The setting names
+  are added to `.env.example` in the phase that introduces each limit. Behind a reverse proxy the client IP comes from a
   trusted `X-Forwarded-For` hop, configured with hosting.
-- Rooms: `RoomManager` creates any number of rooms (fixes B4 and B5). Each
+- Rooms: `RoomManager` runs many concurrent rooms, up to the configured
+  caps (fixes B4 and B5). Each
   room is a tokio task that owns a `domain::Game` and takes commands over an
   mpsc channel, so there is no shared mutable state (fixes B2). Events go out
   over a broadcast channel.
@@ -223,11 +226,11 @@ commits of at most ~200 lines of logic, each shipping its tests.
 | 2 | `feat/domain-board` | Value types, `Board` with mirrored walls, `slide`, the current board as fixture; property tests (a robot never crosses a wall; sliding twice in one direction is a no-op). |
 | 3 | `feat/domain-round` | Targets, bidding order, `Round` state machine, `Game`, scoring, injected `Clock`/`Rng`. Table tests for each bidding rule. |
 | 4 | `feat/domain-board-validation` | `Solver` and `BoardValidator`; test that the fixed board passes and that broken boards (open edge, one-sided wall, unreachable target) fail. |
-| 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls, including: a game with a guest stores the guest's score and is unranked; stats count ranked games only; ties count as wins. |
-| 6a | `feat/server-auth` | `AppState`, register, confirm, login, logout, session (ID cycling, expiry purge), CSRF, `Mailer` with EN/HR email templates, account locale; HTTP integration tests. |
-| 6b | `feat/server-guests` | Guest sessions and `RateLimiter`; tests: name rule (length, non-ASCII rejected), clash with a username in any case, 24-hour expiry with a fake clock, each rate limit, CSRF on `POST /guest`. |
-| 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game`, room caps and idle closing; tests drive commands through a full round without a network, and reject a duplicate nickname in a room. |
-| 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients, one of them a guest who finishes a round and is flagged `is_guest`. |
+| 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls, including: a game with a guest stores the guest's score and is unranked; a one-player game is unranked; stats count ranked games only; ties count as wins. |
+| 6a | `feat/server-auth` | `AppState`, register, confirm, login, logout, session (ID cycling, expiry purge), CSRF, `Mailer` with EN/HR email templates, account locale; HTTP integration tests, including case-insensitive username uniqueness and a new session ID after login. |
+| 6b | `feat/server-guests` | Guest sessions and `RateLimiter`; tests: `RateLimiter` with a fake clock, the guest-start limit, name rule (length, non-ASCII rejected), clash with a username in any case, 24-hour expiry with a fake clock, CSRF on `POST /guest`. |
+| 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game`, room caps and idle closing; tests drive commands through a full round without a network, and cover a duplicate nickname in a room, the room-creation limit, the per-session/IP and global room caps, and idle closing with a fake clock. |
+| 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients, one of them a guest who finishes a round and is flagged `is_guest`, plus the chat and bid/move rate limits. |
 | 8 | `feat/web-auth-lobby` | Login (with "Play as guest"), register, lobby, leaderboard pages; i18n module. |
 | 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with a registered player and a guest playing a round. |
 | 10 | `chore/remove-legacy` | Delete `legacy/`, `clear_log_files.py`; Dockerfile and README with run and test commands. |

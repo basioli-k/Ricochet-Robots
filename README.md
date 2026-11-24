@@ -23,7 +23,7 @@ the rules.
 2. Export the same variables in your shell (the web server settings don't
    reach the command line), then create tables and demo accounts once:
    ```bash
-   cp .env.example .env   # fill in the values
+   cp -n .env.example .env   # if you don't have one yet; fill in the values
    set -a; . ./.env; set +a
    php app/database/create_tables.php && php app/database/seed_tables.php
    ```
