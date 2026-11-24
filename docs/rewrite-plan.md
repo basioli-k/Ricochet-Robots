@@ -175,10 +175,21 @@ ricochet-robots/
   - OpenID Connect authorization-code flow with PKCE, `state` and `nonce`,
     behind an `IdentityProvider` trait (Google in production, a fake in
     tests). Only the `openid` scope is requested, so Google sends no email
-    or name; the ID token is verified (Google's signing keys, issuer,
-    audience = our client id, expiry, nonce) and only its `sub` is used.
+    or name; the ID token is verified (Google's signing keys, issuer
+    `https://accounts.google.com` or `accounts.google.com` (Google uses
+    both), audience = our client id, expiry, nonce) and only its `sub` is
+    used.
+  - `state`, `nonce` and the PKCE verifier live server-side in the
+    pre-sign-in session, are single-use and expire after 10 minutes; the
+    callback is a GET, so `state` bound to the session is what stops login
+    CSRF there.
   - First sign-in asks for a username (same name rule as guests), creating
-    the account; later sign-ins find it by `sub`.
+    the account; later sign-ins find it by `sub`. Until the username is
+    chosen, the verified `sub` waits in the session and expires with the
+    same 10 minutes; the session ID is cycled again once the account exists.
+    If two tabs finish a first sign-in at once, the second insert fails with
+    `GoogleAccountTaken`; the server then looks the account up by `sub` and
+    signs that tab in instead of showing an error.
   - `tower-sessions` cookie (HttpOnly, Secure, SameSite=Lax), CSRF token on
     every state-changing request (`POST /guest`, choosing a username,
     logout), session ID cycled on sign-in and guest start (prevents session
@@ -256,7 +267,7 @@ commits of at most ~200 lines of logic, each shipping its tests.
 | 3 | `feat/domain-round` | Targets, bidding order, `Round` state machine, `Game`, scoring, time passed in as values, injected `Shuffle`. A test for each bidding and round rule. |
 | 4 | `feat/domain-board-validation` | `solve` and `BoardValidator`; test that the fixed board passes and that broken boards (centre not blocked, missing target, robot on a blocked cell or on a target, unreachable target) fail. |
 | 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls, including: a game with a guest stores the guest's score and is unranked; a one-player game is unranked; stats count ranked games only; ties count as wins. |
-| 6a | `feat/server-auth` | `AppState`, Google sign-in through `IdentityProvider` (OIDC code flow with PKCE, ID-token verification), username choice on first sign-in, logout, session (ID cycling, expiry purge), CSRF, account locale; HTTP integration tests with a fake provider, including rejected ID tokens (bad signature, wrong audience or issuer, expired, wrong nonce), case-insensitive username uniqueness and a new session ID after sign-in. |
+| 6a | `feat/server-auth` | `AppState`, Google sign-in through `IdentityProvider` (OIDC code flow with PKCE, ID-token verification), username choice on first sign-in, logout, session (ID cycling, expiry purge), CSRF, account locale; HTTP integration tests with a fake provider, including rejected ID tokens (bad signature, wrong audience or issuer, expired, wrong nonce), case-insensitive username uniqueness and a new session ID after sign-in. Document `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, the public base URL and the database URL in `.env.example`. |
 | 6b | `feat/server-guests` | Guest sessions and `RateLimiter`; tests: `RateLimiter` with a fake clock, the guest-start limit, name rule (length, non-ASCII rejected), clash with a username in any case, 24-hour expiry with a fake clock, CSRF on `POST /guest`. |
 | 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game` (each game gets a `Shuffle` backed by the injected `Rng`), room caps and idle closing; tests drive commands through a full round without a network, and cover a duplicate nickname in a room, the room-creation limit, the per-session/IP and global room caps, and idle closing with a fake clock. |
 | 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients, one of them a guest who finishes a round and is flagged `is_guest`, plus the chat and bid/move rate limits. |
@@ -286,8 +297,9 @@ app keeps working until phase 10.
 ## 6. Secrets policy
 
 - No credentials, tokens, personal data or real user accounts in the
-  repository, including tests and seed data. Seeds create demo accounts on
-  `example.invalid` with generated passwords.
+  repository, including tests and seed data. (The legacy app's seeds create
+  demo accounts on `example.invalid` with generated passwords; the new app
+  has no seeded accounts.)
 - Configuration comes from environment variables; `.env` is git-ignored and
   `.env.example` lists the names with empty or dummy values.
 - `.gitleaks.toml` extends the default gitleaks rules with patterns this repo

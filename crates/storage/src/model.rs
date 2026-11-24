@@ -2,7 +2,7 @@
 
 use domain::{PlayerId, Timestamp};
 
-/// The language an account reads emails and the UI in.
+/// The language an account's UI is shown in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Locale {
     En,

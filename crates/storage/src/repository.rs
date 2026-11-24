@@ -23,7 +23,7 @@ pub enum StorageError {
     Database(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
-/// Registered accounts.
+/// Accounts of players who signed in with Google.
 #[async_trait]
 pub trait PlayerRepository: Send + Sync {
     /// # Errors

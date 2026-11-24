@@ -22,7 +22,7 @@ extend the PHP code beyond fixes needed to keep it running.
 - User-facing text in English and Croatian, via the translation module.
 - One fixed board for now; any new board must pass `BoardValidator`.
 - Sign-in is Google (OpenID Connect) or guest only; no passwords or email are
-  stored, only Google's `sub`.
+  stored, and from Google only its `sub` is kept.
 - Guests can play without an account; any game with a guest is unranked.
 
 ## Commands
