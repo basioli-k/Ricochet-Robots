@@ -11,16 +11,18 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Superseded PR runs are cancelled; every commit on main is fully checked.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   rust:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # rustup installs the toolchain pinned in rust-toolchain.toml on first use.
-      - run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@v2
+      # Installs the toolchain pinned in rust-toolchain.toml.
+      - run: rustup toolchain install
+      # Third-party action pinned to a commit (v2.9.3).
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
@@ -37,7 +39,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - run: npm ci
+      # No dependency needs an install script on Linux; skipping them all
+      # limits what a compromised package could run.
+      - run: npm ci --ignore-scripts
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
