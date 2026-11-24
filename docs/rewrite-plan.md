@@ -121,8 +121,9 @@ ricochet-robots/
   `Resolved`. Bids ordered by fewest moves, then earliest; a player may lower
   their bid. Failed demonstrations reset robots and pass to the next bidder.
 - `Game`: shuffled target deck, scores, game-over.
-- Injected `Clock` and `Rng` traits so timers and shuffles are
-  deterministic in tests.
+- Deterministic by construction: callers pass the time in as `Timestamp`
+  values (the domain never reads a clock), and the target deck is ordered
+  by an injected `Shuffle`. The server's `Clock` and `Rng` feed these.
 - BFS `Solver`, used by `BoardValidator` and later for hints.
 
 ### `storage` crate
@@ -230,7 +231,7 @@ commits of at most ~200 lines of logic, each shipping its tests.
 | 0 | `chore/agent-standards` | Standards submodule, `CLAUDE.md`, this plan, history redaction, secret scanning. Done in PR #5. |
 | 1 | `chore/workspace-skeleton` | Cargo workspace, `web/` Svelte + Vite scaffold, CI (`cargo fmt --check`, `clippy -D warnings`, `cargo test`, `npm run lint`/`typecheck`/`test`). Move PHP to `legacy/` (its `.log` state files stay tracked: the app requires them to exist, and they go with `legacy/` in phase 10). |
 | 2 | `feat/domain-board` | Value types, `Board` with mirrored walls, `slide`, the current board as fixture; property tests (a robot never crosses a wall; sliding twice in one direction is a no-op). |
-| 3 | `feat/domain-round` | Targets, bidding order, `Round` state machine, `Game`, scoring, injected `Clock`/`Rng`. Table tests for each bidding rule. |
+| 3 | `feat/domain-round` | Targets, bidding order, `Round` state machine, `Game`, scoring, time passed in as values, injected `Shuffle`. Table tests for each bidding rule. |
 | 4 | `feat/domain-board-validation` | `Solver` and `BoardValidator`; test that the fixed board passes and that broken boards (centre not blocked, missing target, robot on a blocked cell or on a target, unreachable target) fail. |
 | 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls, including: a game with a guest stores the guest's score and is unranked; a one-player game is unranked; stats count ranked games only; ties count as wins. |
 | 6a | `feat/server-auth` | `AppState`, register, confirm, login, logout, session (ID cycling, expiry purge), CSRF, `Mailer` with EN/HR email templates, account locale; HTTP integration tests, including case-insensitive username uniqueness and a new session ID after login. |
