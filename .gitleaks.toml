@@ -1,23 +1,27 @@
 # Default gitleaks rules plus patterns this repo has leaked before.
+# Each custom rule captures only the secret (secretGroup) so that --redact
+# hides it in CI logs and the allowlist is matched against the secret alone.
 [extend]
 useDefault = true
 
 [[rules]]
 id = "php-pdo-inline-credentials"
-description = "PDO connection with a literal user/password"
-regex = '''new\s+PDO\s*\(\s*['"][^'"]+['"]\s*,\s*['"][^'"]+['"]\s*,\s*['"][^'"]+['"]'''
+description = "PDO connection with a literal password"
+regex = '''new\s+PDO\s*\(\s*['"][^'"]+['"]\s*,\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]'''
+secretGroup = 1
 
 [[rules]]
 id = "literal-password-hash"
 description = "Literal password passed to a hash function (seed data)"
-regex = '''password_hash\s*\(\s*['"][^'"]{4,}['"]'''
+regex = '''password_hash\s*\(\s*['"]([^'"]{4,})['"]'''
+secretGroup = 1
 
 [[rules]]
 id = "database-url-with-password"
 description = "Connection URL with embedded password"
-regex = '''(?i)(postgres(ql)?|mysql|mariadb)://[^:\s/]+:[^@\s]+@'''
+regex = '''(?i)(?:postgres(?:ql)?|mysql|mariadb)://[^:\s/]+:([^@\s]+)@'''
+secretGroup = 1
 
 [allowlist]
-description = "Redaction placeholders and documented examples"
-regexes = ['''REDACTED''']
-paths = ['''\.env\.example$''']
+description = "Values redacted from history by git filter-repo"
+regexes = ['''^REDACTED$''']

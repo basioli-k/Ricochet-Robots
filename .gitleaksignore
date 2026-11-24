@@ -1,0 +1,2 @@
+# Known demo password ("igrac") in legacy seed data, not a real secret.
+85dcf6f1c5e8fdadfa2ca7caa5430ed44de2e1d1:app/database/seed_tables.php:literal-password-hash:24
