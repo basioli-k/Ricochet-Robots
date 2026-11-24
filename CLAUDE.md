@@ -30,6 +30,9 @@ Run before every commit (CI runs the same):
 - Rust: `cargo fmt --all --check`,
   `cargo clippy --workspace --all-targets --locked -- -D warnings`,
   `cargo test --workspace --locked`
+- If proptest writes a `*.proptest-regressions` file for a real failure,
+  commit it with the fix: proptest replays those cases first. Delete ones
+  produced by deliberate mutation checks.
 - Web, from `web/`: `npm run lint`, `npm run typecheck`, `npm test`,
   `npm run build`
 

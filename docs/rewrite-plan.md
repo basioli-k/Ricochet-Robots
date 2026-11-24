@@ -102,14 +102,16 @@ ricochet-robots/
   a wall so B6 cannot recur. For now there is one board: the current fixed
   layout, ported as data. Random quadrant boards come later, once boards can
   be verified (below).
-- Porting the fixed board: a one-off script converts the `new Field("....")`
-  literal in `gameplayController.php` into a Rust data file. Any wall set on
-  only one of its two cells is listed in the PR and resolved deliberately
-  (the builder would otherwise silently add the missing side).
+- Porting the fixed board (done in phase 2): the `new Field("....")`
+  literal in `gameplayController.php` was ported by hand into
+  `crates/domain/src/fixed_board.rs`, keeping the legacy wall encoding.
+  `legacy/tools/board_oracle.py` simulates the legacy game on the PHP data
+  to produce the parity tests' expected values. No wall was one-sided.
 - Robots start at the legacy positions; random placement arrives with
   random boards.
 - `BoardValidator`: checks what construction can't guarantee: the centre
-  is blocked, all 17 targets are placed, robots start on free cells, and
+  is blocked, all 17 targets are placed, robots start on free cells that
+  hold no target (else a round could be won in zero moves), and
   every target is reachable by its robot from the start position. Any new
   board must pass it before use. (Since phase 2 the builder makes walls
   two-sided and targets one per cell, and the edge always stops movement.)
@@ -229,7 +231,7 @@ commits of at most ~200 lines of logic, each shipping its tests.
 | 1 | `chore/workspace-skeleton` | Cargo workspace, `web/` Svelte + Vite scaffold, CI (`cargo fmt --check`, `clippy -D warnings`, `cargo test`, `npm run lint`/`typecheck`/`test`). Move PHP to `legacy/` (its `.log` state files stay tracked: the app requires them to exist, and they go with `legacy/` in phase 10). |
 | 2 | `feat/domain-board` | Value types, `Board` with mirrored walls, `slide`, the current board as fixture; property tests (a robot never crosses a wall; sliding twice in one direction is a no-op). |
 | 3 | `feat/domain-round` | Targets, bidding order, `Round` state machine, `Game`, scoring, injected `Clock`/`Rng`. Table tests for each bidding rule. |
-| 4 | `feat/domain-board-validation` | `Solver` and `BoardValidator`; test that the fixed board passes and that broken boards (centre not blocked, missing target, robot on a blocked cell, unreachable target) fail. |
+| 4 | `feat/domain-board-validation` | `Solver` and `BoardValidator`; test that the fixed board passes and that broken boards (centre not blocked, missing target, robot on a blocked cell or on a target, unreachable target) fail. |
 | 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls, including: a game with a guest stores the guest's score and is unranked; a one-player game is unranked; stats count ranked games only; ties count as wins. |
 | 6a | `feat/server-auth` | `AppState`, register, confirm, login, logout, session (ID cycling, expiry purge), CSRF, `Mailer` with EN/HR email templates, account locale; HTTP integration tests, including case-insensitive username uniqueness and a new session ID after login. |
 | 6b | `feat/server-guests` | Guest sessions and `RateLimiter`; tests: `RateLimiter` with a fake clock, the guest-start limit, name rule (length, non-ASCII rejected), clash with a username in any case, 24-hour expiry with a fake clock, CSRF on `POST /guest`. |
