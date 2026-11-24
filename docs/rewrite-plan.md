@@ -267,13 +267,14 @@ commits of at most ~200 lines of logic, each shipping its tests.
 | 3 | `feat/domain-round` | Targets, bidding order, `Round` state machine, `Game`, scoring, time passed in as values, injected `Shuffle`. A test for each bidding and round rule. |
 | 4 | `feat/domain-board-validation` | `solve` and `BoardValidator`; test that the fixed board passes and that broken boards (centre not blocked, missing target, robot on a blocked cell or on a target, unreachable target) fail. |
 | 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls, including: a game with a guest stores the guest's score and is unranked; a one-player game is unranked; stats count ranked games only; ties count as wins. |
-| 6a | `feat/server-auth` | `AppState`, Google sign-in through `IdentityProvider` (OIDC code flow with PKCE, ID-token verification), username choice on first sign-in, logout, session (ID cycling, expiry purge), CSRF, account locale; HTTP integration tests with a fake provider, including rejected ID tokens (bad signature, wrong audience or issuer, expired, wrong nonce), case-insensitive username uniqueness and a new session ID after sign-in. Document `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, the public base URL and the database URL in `.env.example`. |
+| 6a | `feat/server-skeleton` | `AppState`, config from the environment, injected `Clock`, health endpoint, sessions in SQLite with the cookie policy; tests for config, the cookie attributes and sessions surviving a restart. |
 | 6b | `feat/server-guests` | Guest sessions and `RateLimiter`; tests: `RateLimiter` with a fake clock, the guest-start limit, name rule (length, non-ASCII rejected), clash with a username in any case, 24-hour expiry with a fake clock, CSRF on `POST /guest`. |
 | 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game` (each game gets a `Shuffle` backed by the injected `Rng`), room caps and idle closing; tests drive commands through a full round without a network, and cover a duplicate nickname in a room, the room-creation limit, the per-session/IP and global room caps, and idle closing with a fake clock. |
 | 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients, one of them a guest who finishes a round and is flagged `is_guest`, plus the chat and bid/move rate limits. |
 | 8 | `feat/web-auth-lobby` | Sign-in (Google or guest), username choice, lobby, leaderboard pages; extend the i18n module (saved language preference). |
 | 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with a signed-in player (fake identity provider) and a guest playing a round. |
 | 10 | `chore/remove-legacy` | Delete `legacy/`, first moving `legacy/tools/board_oracle.py` to `tools/` with a copy of the board literal it reads, so the fixed-board test values stay regenerable; Dockerfile and README with run and test commands. |
+| after launch | `feat/server-auth` | `AppState`, Google sign-in through `IdentityProvider` (OIDC code flow with PKCE, ID-token verification), username choice on first sign-in, logout, session (ID cycling, expiry purge), CSRF, account locale; HTTP integration tests with a fake provider, including rejected ID tokens (bad signature, wrong audience or issuer, expired, wrong nonce), case-insensitive username uniqueness and a new session ID after sign-in. Document `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, the public base URL and the database URL in `.env.example`. |
 | later | `feat/domain-quadrants` | Quadrant set and rotation, random boards, each checked by `BoardValidator`. |
 | later | `chore/hosting` | Pick a host (investigation pending) and add deployment. |
 
@@ -291,6 +292,7 @@ app keeps working until phase 10.
 | Accounts | Google sign-in only (no passwords, email or confirmation); anyone can play as a guest |
 | Guest play | Allowed without registration; games with a guest are unranked |
 | Leaked data | Purged from git history; secret scanning added |
+| Launch | Guest-only first: Google sign-in, ranked stats and the leaderboard follow after launch (the server already runs guests-only when the Google settings are unset) |
 | Hosting | Undecided; investigate later. The Dockerfile in phase 10 stays host-agnostic. |
 | Dependencies | Only releases at least 14 days old, enforced in CI; security fixes excepted with the advisory ID |
 | Existing accounts and stats | Start fresh; nothing is imported from the legacy MySQL |
