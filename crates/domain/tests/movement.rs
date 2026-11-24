@@ -135,7 +135,10 @@ proptest! {
         (board, robots) in any_setup(), robot in any_robot(), dir in any_direction(),
     ) {
         let end = board.slide(&robots, robot, dir);
-        let mut at = robots.position(robot);
+        let start = robots.position(robot);
+        let line: Vec<_> = std::iter::successors(Some(start), |p| p.step(dir)).collect();
+        prop_assert!(line.contains(&end), "{:?} is not on the robot's line", end);
+        let mut at = start;
         while at != end {
             prop_assert!(can_enter(&board, robots, at, dir), "crossed an obstacle at {:?}", at);
             at = at.step(dir).unwrap();

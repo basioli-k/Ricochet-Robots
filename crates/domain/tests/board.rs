@@ -77,19 +77,23 @@ fn any_direction() -> impl Strategy<Value = Direction> {
 }
 
 proptest! {
-    /// Whatever walls are added, every wall is consistent from both sides.
+    /// The board has exactly the added walls, each seen from both sides:
+    /// none dropped, none invented.
     #[test]
-    fn walls_always_mirror(walls in prop::collection::vec((any_position(), any_direction()), 0..60)) {
+    fn walls_are_exactly_the_added_ones_from_both_sides(
+        walls in prop::collection::vec((any_position(), any_direction()), 0..60),
+    ) {
         let board = walls
-            .into_iter()
-            .fold(BoardBuilder::new(), |b, (p, d)| b.wall(p, d))
+            .iter()
+            .fold(BoardBuilder::new(), |b, &(p, d)| b.wall(p, d))
             .build()
             .unwrap();
+        let added = |p: Position, d: Direction| {
+            walls.contains(&(p, d)) || p.step(d).is_some_and(|n| walls.contains(&(n, d.opposite())))
+        };
         for p in Position::all() {
             for d in Direction::ALL {
-                if let Some(n) = p.step(d) {
-                    prop_assert_eq!(board.has_wall(p, d), board.has_wall(n, d.opposite()));
-                }
+                prop_assert_eq!(board.has_wall(p, d), added(p, d), "{:?} {:?}", p, d);
             }
         }
     }
