@@ -1,6 +1,10 @@
 <?php
 
 // Popunjavamo tablice u bazi "probnim" podacima.
+// CLI only: this file sits under the web root and prints passwords.
+if( PHP_SAPI !== 'cli' )
+	exit( 1 );
+
 require_once __DIR__ . '/database.class.php';
 
 seed_table_users();
