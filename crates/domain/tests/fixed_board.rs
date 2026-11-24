@@ -1,6 +1,8 @@
 use RobotColor::{Blue, Green, Red, Yellow};
 use Symbol::{Gear, Moon, Planet, Star};
-use domain::{BOARD_SIZE, Direction, Position, RobotColor, Robots, Symbol, Target, fixed_board};
+use domain::{
+    BOARD_SIZE, Direction, Move, Position, RobotColor, Robots, Symbol, Target, fixed_board,
+};
 
 fn pos(row: u8, col: u8) -> Position {
     Position::new(row, col).unwrap()
@@ -105,9 +107,6 @@ fn targets_sit_on_their_legacy_cells() {
         assert_eq!(board.position_of(target), Some(cell), "{target:?}");
     }
 }
-
-/// One move: which robot, which way.
-type Move = (RobotColor, Direction);
 
 /// Twelve-move games from the start position end where the legacy game
 /// ends them, exercising interior walls and robots blocking each other.

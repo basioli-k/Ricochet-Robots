@@ -39,7 +39,8 @@ pub struct BoardValidator {
 
 impl BoardValidator {
     /// A target counts as reachable if any robots can complete it from the
-    /// start position in at most `max_moves` moves.
+    /// start position in at most `max_moves` moves. Validation searches with
+    /// all four robots, so see [`crate::solve`] before going above 14.
     #[must_use]
     pub const fn new(max_moves: u8) -> Self {
         Self { max_moves }

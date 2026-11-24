@@ -109,14 +109,15 @@ ricochet-robots/
   to produce the parity tests' expected values. No wall was one-sided.
 - Robots start at the legacy positions; random placement arrives with
   random boards.
-- `BoardValidator`: checks what construction can't guarantee: the centre
-  is blocked, all 17 targets are placed, robots start on free cells that
-  hold no target (else a round could be won in zero moves), and every
-  target is reachable from the start position within a move limit, using
-  any robots (on the fixed board many targets need another robot as a
-  blocker, so "its robot alone" would be too strict). Any new board must
-  pass it before use. (Since phase 2 the builder makes walls
-  two-sided and targets one per cell, and the edge always stops movement.)
+- `BoardValidator`: checks what construction can't guarantee: the centre is
+  blocked, all 17 targets are placed, robots start on free cells that hold no
+  target (else a round could be won in zero moves), and every target is
+  reachable from the start position within a move limit (12 for the fixed
+  board, whose hardest targets need 10; the server sets it for new boards),
+  using any robots (on the fixed board many targets need another robot as a
+  blocker, so "its robot alone" would be too strict). Any new board must pass
+  it before use. (Since phase 2 the builder makes walls two-sided and targets
+  one per cell, and the edge always stops movement.)
 - `Board::slide(robots, robot, dir) -> Position`: the one movement function,
   used by server validation, client preview and the solver.
 - `Round` state machine: `Bidding` -> `Demonstrating` (bidders in ranked

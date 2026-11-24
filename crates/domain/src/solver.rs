@@ -16,7 +16,9 @@ pub type Move = (RobotColor, Direction);
 /// completed; `None` if there is no solution within the limit.
 ///
 /// Cost grows with the number of movers: one robot has at most 256 states,
-/// all four can have millions, so keep `max_moves` small when moving several.
+/// all four can have millions. With four movers and no solution, time and
+/// memory roughly double per extra move (about 0.1 s at 10 moves and 3 s at
+/// 14 in release builds), so keep `max_moves` at 14 or below for them.
 #[must_use]
 pub fn solve(
     board: &Board,

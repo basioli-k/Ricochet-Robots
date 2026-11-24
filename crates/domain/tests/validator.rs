@@ -41,14 +41,31 @@ fn reports_robots_on_blocked_cells_or_targets() {
     let red_planet = fixed_board::board()
         .position_of(Target::Colored(Red, Symbol::Planet))
         .unwrap();
-    let robots = Robots::new([pos(7, 7), red_planet, pos(14, 0), pos(4, 0)]).unwrap();
+    let vortex = fixed_board::board().position_of(Target::Vortex).unwrap();
+    let robots = Robots::new([pos(7, 7), red_planet, pos(14, 0), vortex]).unwrap();
     let problems = validate(&fixed_board::board(), robots);
     assert!(problems.contains(&BoardProblem::RobotOnBlockedCell(Red)));
     assert!(problems.contains(&BoardProblem::RobotOnTarget(Blue)));
-    for fine in [Green, Yellow] {
-        assert!(!problems.contains(&BoardProblem::RobotOnBlockedCell(fine)));
-        assert!(!problems.contains(&BoardProblem::RobotOnTarget(fine)));
-    }
+    assert!(problems.contains(&BoardProblem::RobotOnTarget(Yellow)));
+    assert!(!problems.contains(&BoardProblem::RobotOnBlockedCell(Green)));
+    assert!(!problems.contains(&BoardProblem::RobotOnTarget(Green)));
+}
+
+/// The limit is inclusive: the fixed board's hardest targets (the vortex
+/// and Blue Gear) need exactly 10 moves.
+#[test]
+fn the_move_limit_is_inclusive() {
+    let (board, robots) = (fixed_board::board(), fixed_board::starting_robots());
+    assert_eq!(BoardValidator::new(10).validate(&board, robots), Ok(()));
+    let mut problems = BoardValidator::new(9).validate(&board, robots).unwrap_err();
+    problems.sort_by_key(|p| format!("{p:?}"));
+    assert_eq!(
+        problems,
+        [
+            BoardProblem::Unreachable(Target::Colored(Blue, Symbol::Gear)),
+            BoardProblem::Unreachable(Target::Vortex),
+        ]
+    );
 }
 
 #[test]
