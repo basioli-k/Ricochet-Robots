@@ -12,6 +12,7 @@ mod movement;
 mod pieces;
 mod robots;
 mod round;
+mod solver;
 
 pub use bidding::{Bid, BidError, Bids, PlayerId, Timestamp};
 pub use board::{Board, BoardBuilder, BoardError};
@@ -20,3 +21,4 @@ pub use geometry::{BOARD_SIZE, Direction, Position};
 pub use pieces::{RobotColor, Symbol, Target};
 pub use robots::{Robots, SharedCell};
 pub use round::{Phase, Round, RoundError};
+pub use solver::{Move, solve};
