@@ -23,6 +23,16 @@ extend the PHP code beyond fixes needed to keep it running.
 - One fixed board for now; any new board must pass `BoardValidator`.
 - Guests can play without an account; any game with a guest is unranked.
 
+## Commands
+
+Run before every commit (CI runs the same):
+
+- Rust: `cargo fmt --all --check`,
+  `cargo clippy --workspace --all-targets -- -D warnings`,
+  `cargo test --workspace`
+- Web, from `web/`: `npm run lint`, `npm run typecheck`, `npm test`,
+  `npm run build`
+
 ## Secrets
 
 Never commit credentials or personal data, including in seeds and tests.

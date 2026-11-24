@@ -164,28 +164,27 @@ ricochet-robots/
   only sees a `PlayerId`, a display name and an `is_guest` flag.
   - `PlayerId` is a random UUID for both kinds, so a guest's ID can never
     equal an account's.
-  - Names: one rule for usernames and nicknames, ASCII `[A-Za-z0-9]{3,15}`
-    (no Unicode, so no lookalike letters). Usernames are unique ignoring
-    case (`Alice` is rejected when `alice` exists). A nickname must be unique in
-    the room and must not match a registered username, ignoring case;
-    checked at guest start and again on every room join. Guests are always
-    shown with a guest badge (`is_guest` in `Snapshot` and player lists),
-    so a guest whose name is registered later still can't pass as that
-    account.
+  - Names: one rule for usernames and nicknames, ASCII `[A-Za-z0-9]{3,15}` (no
+    Unicode, so no lookalike letters). Usernames are unique ignoring case
+    (`Alice` is rejected when `alice` exists). A nickname must be unique in
+    the room and must not match a registered username, ignoring case; checked
+    at guest start and again on every room join. Guests are always shown with
+    a guest badge (`is_guest` in `Snapshot` and player lists), so a guest
+    whose name is registered later still can't pass as that account.
   - Guests can create and join rooms, but games with any guest are
     unranked (see storage), so guests can't inflate anyone's stats.
-- Abuse limits, all through `RateLimiter` and configurable (defaults:
-  5 guest starts and 5 room creations per IP per 10 minutes, at most 2
-  open rooms per session and per IP, 1 chat message per second per player,
-  10 bids or moves per second per player, at most 200 open rooms). Rooms
-  with no connected players are closed after 10 minutes. The setting names
-  are added to `.env.example` in the phase that introduces each limit. Behind a reverse proxy the client IP comes from a
-  trusted `X-Forwarded-For` hop, configured with hosting.
-- Rooms: `RoomManager` runs many concurrent rooms, up to the configured
-  caps (fixes B4 and B5). Each
-  room is a tokio task that owns a `domain::Game` and takes commands over an
-  mpsc channel, so there is no shared mutable state (fixes B2). Events go out
-  over a broadcast channel.
+- Abuse limits, all through `RateLimiter` and configurable (defaults: 5 guest
+  starts and 5 room creations per IP per 10 minutes, at most 2 open rooms per
+  session and per IP, 1 chat message per second per player, 10 bids or moves
+  per second per player, at most 200 open rooms). Rooms with no connected
+  players are closed after 10 minutes. The setting names are added to
+  `.env.example` in the phase that introduces each limit. Behind a reverse
+  proxy the client IP comes from a trusted `X-Forwarded-For` hop, configured
+  with hosting.
+- Rooms: `RoomManager` runs many concurrent rooms, up to the configured caps
+  (fixes B4 and B5). Each room is a tokio task that owns a `domain::Game` and
+  takes commands over an mpsc channel, so there is no shared mutable state
+  (fixes B2). Events go out over a broadcast channel.
 - WebSocket protocol, server-authoritative. The player is taken from the
   session, never from the payload (fixes S3, S4, S6):
   - client -> server: `Join`, `Start`, `Bid { moves }`, `Move { robot, dir }`,

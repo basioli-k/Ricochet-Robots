@@ -16,6 +16,31 @@ pipx install pre-commit && pre-commit install   # gitleaks on every commit
 `--recurse-submodules`, and ask the repository owner for access if you need
 the rules.
 
+### Rust workspace (`crates/`)
+
+Needs `rustup`; the pinned toolchain in `rust-toolchain.toml` installs
+itself on first use.
+
+```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+```
+
+### Web client (`web/`)
+
+Needs Node.js 22 or newer.
+
+```bash
+cd web
+npm ci
+npm run dev         # local dev server
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
 ### Legacy PHP app (`legacy/`)
 
 1. Serve `legacy/` as the document root, and set `RR_DB_DSN`, `RR_DB_USER`
