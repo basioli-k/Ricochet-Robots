@@ -122,6 +122,13 @@ impl SqliteStore {
         Self::open(pool, options).await
     }
 
+    /// The underlying pool, for components that share the database (e.g.
+    /// the session store).
+    #[must_use]
+    pub fn pool(&self) -> &SqlitePool {
+        &self.pool
+    }
+
     async fn open(
         pool: SqlitePoolOptions,
         options: SqliteConnectOptions,

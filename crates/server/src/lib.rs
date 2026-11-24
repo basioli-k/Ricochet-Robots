@@ -2,11 +2,13 @@
 
 pub mod clock;
 pub mod config;
+pub mod sessions;
 
 use std::sync::Arc;
 
 use axum::{Router, routing::get};
 use storage::{GameResultRepository, PlayerRepository};
+use tower_sessions::{SessionManagerLayer, SessionStore};
 
 use crate::clock::Clock;
 
@@ -24,11 +26,13 @@ impl std::fmt::Debug for AppState {
     }
 }
 
-/// The application's routes.
-pub fn app(state: AppState) -> Router {
+/// The application's routes, with sessions kept in `sessions` (SQLite in
+/// production, in memory in tests).
+pub fn app<S: SessionStore + Clone>(state: AppState, sessions: SessionManagerLayer<S>) -> Router {
     Router::new()
         .route("/health", get(health))
         .with_state(state)
+        .layer(sessions)
 }
 
 /// For load balancers and uptime checks; not user-facing.
