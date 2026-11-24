@@ -149,9 +149,13 @@ ricochet-robots/
 - `games.ranked` is set when the game is stored: true only if every player
   had an account and there were at least two. Stats and the leaderboard
   read ranked games only, so guests can't be used to farm wins (see
-  Guests). The winner is the highest score; ties all count as wins.
+  Guests). The winner is the highest score; ties all count as wins, and
+  nobody wins a game where nobody scored (the legacy code made everyone a
+  winner then).
 - Fresh database: no data is imported from the legacy MySQL.
 - SQLite (one file, easy to deploy); the trait keeps other databases open.
+  Uniqueness ignoring case is enforced by the database through lowercased
+  key columns; migrations live in `migrations/` and run on connect.
 
 ### `server` crate
 
