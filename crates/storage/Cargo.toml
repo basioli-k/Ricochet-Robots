@@ -11,7 +11,7 @@ workspace = true
 [dependencies]
 async-trait = "0.1.92"
 domain.workspace = true
-sqlx = { version = "0.9.1", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "migrate", "macros"] }
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "migrate", "macros"] }
 thiserror = "2.0.21"
 
 [dev-dependencies]
