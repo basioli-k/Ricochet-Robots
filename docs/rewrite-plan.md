@@ -27,7 +27,7 @@ Severity: **C** critical, **H** high, **M** medium, **L** low.
 
 | # | Sev | Where | Problem |
 |---|-----|-------|---------|
-| S1 | C | `app/dajLog.php`, `app/ocistiLog.php` | `filename`/`filenames` come straight from the query string. With `../` paths, anyone can read or empty any file the web server can both read and write (the scripts check both), e.g. PHP sources holding the DB credentials on a typical shared-host setup. No session check. |
+| S1 | C | `app/dajLog.php`, `app/ocistiLog.php` | `filename`/`filenames` come straight from the query string. With `../` paths, anyone can read or empty any file the web server can both read and write (the scripts check both), e.g. the game's `.log` state files or config. No session check. |
 | S2 | C | `app/database/database.class.php`, `seed_tables.php` | Database credentials and real people's emails and plaintext passwords were committed. **Done:** redacted from all history with `git filter-repo`; credentials now come from the environment; gitleaks runs in pre-commit and CI (see section 6). Still treat the old values as leaked and change them. |
 | S3 | H | `app/updatajRezultate.php`, `app/updateBaze.php` | The client reports its own score (`?username=X&bodovi=N`), and anyone can call `updateBaze.php` any number of times. Points and stats can be forged for any player. |
 | S4 | H | `app/saljiPoruku.php`, `gameplay.js:588` | Stored XSS: the chat message is stored as HTML and inserted with `.append()`. The sender name `ime` comes from the request, so players can also impersonate each other. |
@@ -41,7 +41,7 @@ Severity: **C** critical, **H** high, **M** medium, **L** low.
 
 | # | Sev | Where | Problem |
 |---|-----|-------|---------|
-| B1 | H | `gameplay.js:krajIgre` | Every client runs end-of-game, so `updateBaze.php` runs once per player and stats get counted N times. |
+| B1 | H | `gameplay.js:krajIgre` | Every client runs end-of-game, so `updateBaze.php` can run once per player before the logs are cleared: stats are counted between 1 and N times (racy). |
 | B2 | H | all `.log` writers | Read-modify-write without locks (`player_count.log`, `rezultati.log`, `usernames.log`): concurrent requests lose updates. |
 | B3 | H | `app/cek*.php` | Long-poll loops have no timeout and spin every 10 ms, holding a PHP worker per waiting client; a few players can exhaust the pool. |
 | B4 | H | `index.php` | A non-empty `timer.log` blocks everyone from starting a game; a crashed or abandoned game blocks the site until files are cleared by hand. |
@@ -84,7 +84,7 @@ ricochet-robots/
 │   ├── domain/                # pure rules: no I/O, no async, no serde_json
 │   ├── storage/               # repository traits + SQLx and in-memory impls
 │   └── server/                # axum HTTP + WebSocket, rooms, auth, mailer
-├── web/                       # TypeScript (strict) + Vite client
+├── web/                       # Svelte 5 + TypeScript (strict) + Vite client
 ├── migrations/                # SQLx migrations
 └── .agents/standards/         # submodule
 ```
@@ -96,6 +96,12 @@ ricochet-robots/
   a wall so B6 cannot recur. For now there is one board: the current fixed
   layout, ported as data. Random quadrant boards come later, once boards can
   be verified (below).
+- Porting the fixed board: a one-off script converts the `new Field("....")`
+  literal in `gameplayController.php` into a Rust data file. Any wall set on
+  only one of its two cells is listed in the PR and resolved deliberately
+  (the builder would otherwise silently add the missing side).
+- Robots start at the legacy positions; random placement arrives with
+  random boards.
 - `BoardValidator`: checks a board is legal (closed outer walls, blocked
   centre, mirrored walls, one cell per target, every target reachable by its
   robot from the start position). Any new board must pass it before use.
@@ -122,6 +128,14 @@ ricochet-robots/
 
 - `axum` + `tokio`, `tracing`, `thiserror` errors mapped to HTTP responses
   without leaking internals.
+- Dependencies injected through an `AppState` built in `main`:
+  `Arc<dyn PlayerRepository>`, `Arc<dyn GameResultRepository>`,
+  `Arc<dyn Mailer>`, `Arc<dyn Clock>`, `Arc<dyn Rng>`. Tests build it with
+  in-memory and fake implementations.
+- Text: errors and events carry stable codes (e.g. `username_taken`), never
+  prose; the client translates them. The only server-rendered text is email,
+  from templates in English and Croatian, picked by the locale stored on the
+  account at sign-up.
 - Auth (sign-up, email confirmation, login, logout; replaces the PHP
   controllers): argon2id hashes, `tower-sessions` cookie (HttpOnly, SameSite),
   CSRF token on forms, email confirmation tokens from a CSPRNG with an
@@ -153,7 +167,9 @@ ricochet-robots/
 - Board drawn from server state (CSS grid or SVG); walls and robots come from
   data, never from computed styles. Keyboard (WASD and arrows) and click
   controls, plus the robot-slide animation from `todos.txt`.
-- All user-facing strings in one translation module, English and Croatian. Chat rendered as text, never HTML.
+- All user-facing strings in one translation module, English and Croatian.
+  Language comes from the saved preference, falling back to the browser
+  language. Chat is rendered as text, never HTML.
 - Pages: login, register, lobby (room list), game, leaderboard.
 
 ## 4. Delivery plan
@@ -163,14 +179,15 @@ commits of at most ~200 lines of logic, each shipping its tests.
 
 | Phase | Branch | Content |
 |-------|--------|---------|
-| 0 | `chore/agent-standards` | Standards submodule, `CLAUDE.md`, this plan, history redaction, secret scanning. Done. |
+| 0 | `chore/agent-standards` | Standards submodule, `CLAUDE.md`, this plan, history redaction, secret scanning. This PR. |
 | 1 | `chore/workspace-skeleton` | Cargo workspace, `web/` Svelte + Vite scaffold, CI (`cargo fmt --check`, `clippy -D warnings`, `cargo test`, `npm run lint`/`typecheck`/`test`). Move PHP to `legacy/`; untrack `.log` files. |
 | 2 | `feat/domain-board` | Value types, `Board` with mirrored walls, `slide`, the current board as fixture; property tests (a robot never crosses a wall; sliding twice in one direction is a no-op). |
 | 3 | `feat/domain-round` | Targets, bidding order, `Round` state machine, `Game`, scoring, injected `Clock`/`Rng`. Table tests for each bidding rule. |
 | 4 | `feat/domain-board-validation` | `Solver` and `BoardValidator`; test that the fixed board passes and that broken boards (open edge, one-sided wall, unreachable target) fail. |
 | 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls. |
-| 6 | `feat/server-auth` | Register, confirm, login, logout, session, CSRF, `Mailer`; HTTP integration tests. |
-| 7 | `feat/server-rooms` | `RoomManager`, room actor, WebSocket protocol, `ts-rs` export; tests drive two fake clients through a full round. |
+| 6 | `feat/server-auth` | `AppState`, register, confirm, login, logout, session, CSRF, `Mailer` with EN/HR email templates, account locale; HTTP integration tests. |
+| 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game`; tests drive commands through a full round without a network. |
+| 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients. |
 | 8 | `feat/web-auth-lobby` | Login, register, lobby, leaderboard pages; i18n module. |
 | 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with two browser contexts playing a round. |
 | 10 | `chore/remove-legacy` | Delete `legacy/`, `clear_log_files.py`; Dockerfile and README with run and test commands. |
@@ -191,6 +208,7 @@ app keeps working until phase 10.
 | Sign-up and email confirmation | Kept, reimplemented in Rust |
 | Leaked data | Purged from git history; secret scanning added |
 | Hosting | Undecided; investigate later. The Dockerfile in phase 10 stays host-agnostic. |
+| Existing accounts and stats | **Open.** The legacy MySQL ran on a university server. Default: start fresh. Alternative: a one-off import into SQLite in phase 5, accepting the legacy bcrypt hashes at login and rehashing to argon2id. |
 
 ## 6. Secrets policy
 
