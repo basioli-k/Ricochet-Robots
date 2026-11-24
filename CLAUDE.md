@@ -27,3 +27,17 @@ extend the PHP code beyond fixes needed to keep it running.
 Never commit credentials or personal data, including in seeds and tests.
 Read config from environment variables and document names in
 `.env.example`. See `docs/rewrite-plan.md` section 6.
+
+## Pull requests
+
+Every change reaches `main` through a pull request:
+
+1. Push a `<type>/<kebab>` branch and open a PR against `main`.
+2. Review it with three independent reviewer subagents, each with its own
+   focus: correctness and security; these standards and the rewrite plan;
+   tests, CI and docs. Each returns `APPROVE` or `REQUEST_CHANGES` with
+   findings.
+3. Fix every blocking finding, then re-review with all three.
+4. On consensus (all three `APPROVE`), push the branch to `main` as a
+   fast-forward (rebase onto `main` first if needed) and record the review
+   outcome in the PR description.
