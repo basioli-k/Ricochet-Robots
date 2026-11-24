@@ -12,6 +12,12 @@ impl PlayerId {
     pub const fn new(raw: u128) -> Self {
         Self(raw)
     }
+
+    /// The raw value, for storage.
+    #[must_use]
+    pub const fn raw(self) -> u128 {
+        self.0
+    }
 }
 
 /// Milliseconds on a clock chosen by the caller. The domain never reads the
