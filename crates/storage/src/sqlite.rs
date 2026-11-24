@@ -12,6 +12,77 @@ use crate::model::{
 };
 use crate::repository::{GameResultRepository, PlayerRepository, StorageError, check_seats};
 
+/// `SELECT` of every account column, followed by `$tail`.
+macro_rules! select_account {
+    ($tail:literal) => {
+        concat!(
+            "SELECT id, google_subject, username, locale, created_at FROM accounts ",
+            $tail
+        )
+    };
+}
+
+#[async_trait]
+impl PlayerRepository for SqliteStore {
+    async fn create(&self, account: &Account) -> Result<(), StorageError> {
+        sqlx::query(
+            "INSERT INTO accounts (id, google_subject, username, username_key, locale, created_at) \
+             VALUES (?, ?, ?, ?, ?, ?)",
+        )
+        .bind(id_text(account.id))
+        .bind(&account.google_subject)
+        .bind(&account.username)
+        .bind(account.username.to_ascii_lowercase())
+        .bind(account.locale.code())
+        .bind(millis(account.created_at)?)
+        .execute(&self.pool)
+        .await
+        .map_err(create_error)?;
+        Ok(())
+    }
+
+    async fn by_id(&self, id: PlayerId) -> Result<Option<Account>, StorageError> {
+        let row = sqlx::query(select_account!("WHERE id = ?"))
+            .bind(id_text(id))
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(db)?;
+        row.as_ref().map(account_from).transpose()
+    }
+
+    async fn by_username(&self, username: &str) -> Result<Option<Account>, StorageError> {
+        let row = sqlx::query(select_account!("WHERE username_key = ?"))
+            .bind(username.to_ascii_lowercase())
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(db)?;
+        row.as_ref().map(account_from).transpose()
+    }
+
+    async fn by_google_subject(&self, subject: &str) -> Result<Option<Account>, StorageError> {
+        let row = sqlx::query(select_account!("WHERE google_subject = ?"))
+            .bind(subject)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(db)?;
+        row.as_ref().map(account_from).transpose()
+    }
+
+    async fn set_locale(&self, id: PlayerId, locale: Locale) -> Result<(), StorageError> {
+        let done = sqlx::query("UPDATE accounts SET locale = ? WHERE id = ?")
+            .bind(locale.code())
+            .bind(id_text(id))
+            .execute(&self.pool)
+            .await
+            .map_err(db)?;
+        if done.rows_affected() == 0 {
+            Err(StorageError::NotFound)
+        } else {
+            Ok(())
+        }
+    }
+}
+
 /// Accounts and games in SQLite. Migrations run on connect.
 #[derive(Debug, Clone)]
 pub struct SqliteStore {
@@ -61,6 +132,11 @@ fn db(e: impl std::error::Error + Send + Sync + 'static) -> StorageError {
     StorageError::Database(Box::new(e))
 }
 
+/// A stored value that can't be valid (e.g. an unknown locale code).
+fn corrupt(what: &'static str) -> StorageError {
+    StorageError::Database(what.into())
+}
+
 fn id_text(id: PlayerId) -> String {
     format!("{:032x}", id.raw())
 }
@@ -76,8 +152,8 @@ fn create_error(e: sqlx::Error) -> StorageError {
         if message.contains("accounts.username_key") {
             return StorageError::UsernameTaken;
         }
-        if message.contains("accounts.email_key") {
-            return StorageError::EmailTaken;
+        if message.contains("accounts.google_subject") {
+            return StorageError::GoogleAccountTaken;
         }
     }
     db(e)
@@ -86,20 +162,13 @@ fn create_error(e: sqlx::Error) -> StorageError {
 fn account_from(row: &SqliteRow) -> Result<Account, StorageError> {
     let id: String = row.try_get("id").map_err(db)?;
     let locale: String = row.try_get("locale").map_err(db)?;
-    let timestamp = |column: &str| -> Result<Option<Timestamp>, StorageError> {
-        let value: Option<i64> = row.try_get(column).map_err(db)?;
-        value
-            .map(|v| u64::try_from(v).map(Timestamp).map_err(db))
-            .transpose()
-    };
+    let created_at: i64 = row.try_get("created_at").map_err(db)?;
     Ok(Account {
         id: PlayerId::new(u128::from_str_radix(&id, 16).map_err(db)?),
+        google_subject: row.try_get("google_subject").map_err(db)?,
         username: row.try_get("username").map_err(db)?,
-        email: row.try_get("email").map_err(db)?,
-        password_hash: row.try_get("password_hash").map_err(db)?,
-        locale: Locale::from_code(&locale).ok_or(StorageError::InvalidGame("unknown locale"))?,
-        created_at: timestamp("created_at")?.ok_or(StorageError::NotFound)?,
-        confirmed_at: timestamp("confirmed_at")?,
+        locale: Locale::from_code(&locale).ok_or_else(|| corrupt("unknown locale"))?,
+        created_at: Timestamp(u64::try_from(created_at).map_err(db)?),
     })
 }
 
@@ -127,80 +196,6 @@ macro_rules! leaderboard_sql {
             " DESC, a.username ASC LIMIT ?"
         )
     };
-}
-
-const ACCOUNT_COLUMNS: &str =
-    "id, username, email, password_hash, locale, created_at, confirmed_at";
-
-#[async_trait]
-impl PlayerRepository for SqliteStore {
-    async fn create(&self, account: &Account) -> Result<(), StorageError> {
-        sqlx::query(
-            "INSERT INTO accounts (id, username, username_key, email, email_key, password_hash, \
-             locale, created_at, confirmed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(id_text(account.id))
-        .bind(&account.username)
-        .bind(account.username.to_ascii_lowercase())
-        .bind(&account.email)
-        .bind(account.email.to_ascii_lowercase())
-        .bind(&account.password_hash)
-        .bind(account.locale.code())
-        .bind(millis(account.created_at)?)
-        .bind(account.confirmed_at.map(millis).transpose()?)
-        .execute(&self.pool)
-        .await
-        .map_err(create_error)?;
-        Ok(())
-    }
-
-    async fn by_id(&self, id: PlayerId) -> Result<Option<Account>, StorageError> {
-        let sql = format!("SELECT {ACCOUNT_COLUMNS} FROM accounts WHERE id = ?");
-        let row = sqlx::query(sqlx::AssertSqlSafe(sql))
-            .bind(id_text(id))
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(db)?;
-        row.as_ref().map(account_from).transpose()
-    }
-
-    async fn by_username(&self, username: &str) -> Result<Option<Account>, StorageError> {
-        let sql = format!("SELECT {ACCOUNT_COLUMNS} FROM accounts WHERE username_key = ?");
-        let row = sqlx::query(sqlx::AssertSqlSafe(sql))
-            .bind(username.to_ascii_lowercase())
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(db)?;
-        row.as_ref().map(account_from).transpose()
-    }
-
-    async fn confirm(&self, id: PlayerId, at: Timestamp) -> Result<(), StorageError> {
-        let done = sqlx::query("UPDATE accounts SET confirmed_at = ? WHERE id = ?")
-            .bind(millis(at)?)
-            .bind(id_text(id))
-            .execute(&self.pool)
-            .await
-            .map_err(db)?;
-        if done.rows_affected() == 0 {
-            Err(StorageError::NotFound)
-        } else {
-            Ok(())
-        }
-    }
-
-    async fn set_locale(&self, id: PlayerId, locale: Locale) -> Result<(), StorageError> {
-        let done = sqlx::query("UPDATE accounts SET locale = ? WHERE id = ?")
-            .bind(locale.code())
-            .bind(id_text(id))
-            .execute(&self.pool)
-            .await
-            .map_err(db)?;
-        if done.rows_affected() == 0 {
-            Err(StorageError::NotFound)
-        } else {
-            Ok(())
-        }
-    }
 }
 
 async fn insert_seats(

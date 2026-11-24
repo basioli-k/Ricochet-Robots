@@ -10,12 +10,10 @@ async fn data_survives_reconnecting() {
     let url = format!("sqlite://{}", path.display());
     let ana = Account {
         id: PlayerId::new(7),
+        google_subject: "google-7".into(),
         username: "ana".into(),
-        email: "ana@example.invalid".into(),
-        password_hash: "not-a-real-hash".into(),
         locale: Locale::Hr,
         created_at: Timestamp(1),
-        confirmed_at: Some(Timestamp(2)),
     };
     {
         let store = SqliteStore::connect(&url).await.unwrap();

@@ -13,12 +13,10 @@ impl<T: PlayerRepository + GameResultRepository> Store for T {}
 fn account(id: u128, username: &str) -> Account {
     Account {
         id: PlayerId::new(id),
+        google_subject: format!("google-{id}"),
         username: username.into(),
-        email: format!("{username}@example.invalid"),
-        password_hash: "not-a-real-hash".into(),
         locale: Locale::En,
         created_at: Timestamp(1_000),
-        confirmed_at: None,
     }
 }
 
@@ -64,40 +62,41 @@ async fn finds_accounts_by_id_and_username_ignoring_case(store: impl Store) {
     assert_eq!(store.by_id(BOB).await.unwrap(), None);
 }
 
-async fn usernames_and_emails_are_unique_ignoring_case(store: impl Store) {
+async fn usernames_and_google_accounts_are_unique(store: impl Store) {
     store.create(&account(1, "ana")).await.unwrap();
     // Each case collides on one field only.
     let same_name = Account {
-        email: "other@example.invalid".into(),
+        google_subject: "google-other".into(),
         ..account(2, "ANA")
     };
     assert!(matches!(
         store.create(&same_name).await,
         Err(StorageError::UsernameTaken)
     ));
-    let same_email = Account {
-        email: "ANA@EXAMPLE.INVALID".into(),
+    let same_google = Account {
+        google_subject: "google-1".into(),
         ..account(3, "other")
     };
     assert!(matches!(
-        store.create(&same_email).await,
-        Err(StorageError::EmailTaken)
+        store.create(&same_google).await,
+        Err(StorageError::GoogleAccountTaken)
     ));
 }
 
-async fn confirms_and_changes_locale(store: impl Store) {
+async fn finds_accounts_by_exact_google_subject(store: impl Store) {
     store.create(&account(1, "ana")).await.unwrap();
-    store.confirm(ANA, Timestamp(2_000)).await.unwrap();
-    store.set_locale(ANA, Locale::Hr).await.unwrap();
-    let ana = store.by_id(ANA).await.unwrap().unwrap();
     assert_eq!(
-        (ana.confirmed_at, ana.locale),
-        (Some(Timestamp(2_000)), Locale::Hr)
+        store.by_google_subject("google-1").await.unwrap(),
+        Some(account(1, "ana"))
     );
-    assert!(matches!(
-        store.confirm(BOB, Timestamp(0)).await,
-        Err(StorageError::NotFound)
-    ));
+    // Subjects are opaque: no case folding.
+    assert_eq!(store.by_google_subject("GOOGLE-1").await.unwrap(), None);
+}
+
+async fn changes_locale(store: impl Store) {
+    store.create(&account(1, "ana")).await.unwrap();
+    store.set_locale(ANA, Locale::Hr).await.unwrap();
+    assert_eq!(store.by_id(ANA).await.unwrap().unwrap().locale, Locale::Hr);
     assert!(matches!(
         store.set_locale(BOB, Locale::En).await,
         Err(StorageError::NotFound)
@@ -234,8 +233,9 @@ macro_rules! contract {
             use super::*;
             contract!(@tests $make;
                 finds_accounts_by_id_and_username_ignoring_case,
-                usernames_and_emails_are_unique_ignoring_case,
-                confirms_and_changes_locale,
+                usernames_and_google_accounts_are_unique,
+                finds_accounts_by_exact_google_subject,
+                changes_locale,
                 ranked_games_count_tokens_and_wins,
                 ties_count_as_wins_for_all_top_scorers,
                 games_with_a_guest_are_stored_but_unranked,

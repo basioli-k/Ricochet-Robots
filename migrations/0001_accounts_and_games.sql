@@ -1,17 +1,15 @@
 -- Accounts and finished games. Timestamps are milliseconds; ids are the
 -- 128-bit PlayerId as 32 lowercase hex digits.
 
+-- Players sign in with Google; only Google's stable account id is kept.
 CREATE TABLE accounts (
-    id            TEXT    PRIMARY KEY NOT NULL,
-    username      TEXT    NOT NULL,
-    -- Lowercased copies enforce uniqueness ignoring case.
-    username_key  TEXT    NOT NULL UNIQUE,
-    email         TEXT    NOT NULL,
-    email_key     TEXT    NOT NULL UNIQUE,
-    password_hash TEXT    NOT NULL,
-    locale        TEXT    NOT NULL CHECK (locale IN ('en', 'hr')),
-    created_at    INTEGER NOT NULL,
-    confirmed_at  INTEGER
+    id             TEXT    PRIMARY KEY NOT NULL,
+    google_subject TEXT    NOT NULL UNIQUE,
+    username       TEXT    NOT NULL,
+    -- Lowercased copy enforces uniqueness ignoring case.
+    username_key   TEXT    NOT NULL UNIQUE,
+    locale         TEXT    NOT NULL CHECK (locale IN ('en', 'hr')),
+    created_at     INTEGER NOT NULL
 );
 
 CREATE TABLE games (

@@ -1,7 +1,7 @@
 //! The storage interfaces the server depends on.
 
 use async_trait::async_trait;
-use domain::{PlayerId, Timestamp};
+use domain::PlayerId;
 
 use crate::model::{Account, FinishedGame, LeaderboardEntry, LeaderboardSort, Locale, PlayerStats};
 
@@ -11,9 +11,9 @@ pub enum StorageError {
     /// Usernames are unique ignoring case.
     #[error("username is taken")]
     UsernameTaken,
-    /// Email addresses are unique ignoring case.
-    #[error("email is already registered")]
-    EmailTaken,
+    /// A Google account maps to at most one account here.
+    #[error("this Google account already has an account")]
+    GoogleAccountTaken,
     #[error("no such account")]
     NotFound,
     /// The game record breaks a rule, e.g. the same account in two seats.
@@ -27,9 +27,9 @@ pub enum StorageError {
 #[async_trait]
 pub trait PlayerRepository: Send + Sync {
     /// # Errors
-    /// [`StorageError::UsernameTaken`] or [`StorageError::EmailTaken`] when
-    /// either matches an existing account ignoring case (either one when
-    /// both do).
+    /// [`StorageError::UsernameTaken`] if the username matches one ignoring
+    /// case, [`StorageError::GoogleAccountTaken`] if the Google account is
+    /// already linked (either one when both are).
     async fn create(&self, account: &Account) -> Result<(), StorageError>;
 
     /// # Errors
@@ -42,9 +42,11 @@ pub trait PlayerRepository: Send + Sync {
     /// Only on database failure.
     async fn by_username(&self, username: &str) -> Result<Option<Account>, StorageError>;
 
+    /// The account linked to a Google account, matched exactly.
+    ///
     /// # Errors
-    /// [`StorageError::NotFound`] for an unknown account.
-    async fn confirm(&self, id: PlayerId, at: Timestamp) -> Result<(), StorageError>;
+    /// Only on database failure.
+    async fn by_google_subject(&self, subject: &str) -> Result<Option<Account>, StorageError>;
 
     /// # Errors
     /// [`StorageError::NotFound`] for an unknown account.

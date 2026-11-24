@@ -3,7 +3,7 @@
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use domain::{PlayerId, Timestamp};
+use domain::PlayerId;
 
 use crate::model::{
     Account, FinishedGame, LeaderboardEntry, LeaderboardSort, Locale, PlayerStats, Seat,
@@ -72,9 +72,9 @@ impl PlayerRepository for InMemoryStore {
         if inner
             .accounts
             .iter()
-            .any(|a| a.email.eq_ignore_ascii_case(&account.email))
+            .any(|a| a.google_subject == account.google_subject)
         {
-            return Err(StorageError::EmailTaken);
+            return Err(StorageError::GoogleAccountTaken);
         }
         inner.accounts.push(account.clone());
         Ok(())
@@ -93,9 +93,13 @@ impl PlayerRepository for InMemoryStore {
             .cloned())
     }
 
-    async fn confirm(&self, id: PlayerId, at: Timestamp) -> Result<(), StorageError> {
-        self.lock().account_mut(id)?.confirmed_at = Some(at);
-        Ok(())
+    async fn by_google_subject(&self, subject: &str) -> Result<Option<Account>, StorageError> {
+        Ok(self
+            .lock()
+            .accounts
+            .iter()
+            .find(|a| a.google_subject == subject)
+            .cloned())
     }
 
     async fn set_locale(&self, id: PlayerId, locale: Locale) -> Result<(), StorageError> {

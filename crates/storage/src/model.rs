@@ -28,17 +28,18 @@ impl Locale {
     }
 }
 
-/// A registered player. The id doubles as their in-game `PlayerId`.
+/// A player who signed in with Google. The id doubles as their in-game
+/// `PlayerId`. Only Google's stable account id is kept: no email, real name
+/// or password is ever stored.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Account {
     pub id: PlayerId,
+    /// Google's `sub` claim: opaque, stable and unique per Google account.
+    pub google_subject: String,
+    /// Chosen by the player at first sign-in; shown in games and rankings.
     pub username: String,
-    pub email: String,
-    pub password_hash: String,
     pub locale: Locale,
     pub created_at: Timestamp,
-    /// When the email address was confirmed; unconfirmed accounts can't log in.
-    pub confirmed_at: Option<Timestamp>,
 }
 
 /// One seat in a finished game.
