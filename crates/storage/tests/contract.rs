@@ -135,11 +135,35 @@ async fn games_with_a_guest_are_stored_but_unranked(store: impl Store) {
     with_players(&store).await;
     let seats = [
         (Seat::Account(ANA), 5),
-        (Seat::Account(BOB), 1),
         (Seat::Guest("visitor".into()), 2),
+        (Seat::Account(BOB), 1),
     ];
-    store.record(&game(&seats)).await.unwrap();
+    let with_guest = game(&seats);
+    assert!(!with_guest.is_ranked());
+    store.record(&with_guest).await.unwrap();
+    // The whole game comes back, guest seat and score included, in order.
+    assert_eq!(store.recent_games(10).await.unwrap(), vec![with_guest]);
     assert_eq!(store.stats(ANA).await.unwrap(), PlayerStats::default());
+}
+
+async fn recent_games_are_newest_first_and_limited(store: impl Store) {
+    with_players(&store).await;
+    let at = |t, tokens| FinishedGame {
+        finished_at: Timestamp(t),
+        players: vec![Participant {
+            seat: Seat::Account(ANA),
+            tokens,
+        }],
+    };
+    for g in [at(10, 1), at(30, 2), at(20, 3), at(30, 4)] {
+        store.record(&g).await.unwrap();
+    }
+    // Equal times: the later recorded comes first.
+    assert_eq!(
+        store.recent_games(3).await.unwrap(),
+        [at(30, 4), at(30, 2), at(20, 3)]
+    );
+    assert_eq!(store.recent_games(0).await.unwrap(), []);
 }
 
 async fn a_one_player_game_is_unranked(store: impl Store) {
@@ -239,6 +263,7 @@ macro_rules! contract {
                 ranked_games_count_tokens_and_wins,
                 ties_count_as_wins_for_all_top_scorers,
                 games_with_a_guest_are_stored_but_unranked,
+                recent_games_are_newest_first_and_limited,
                 a_one_player_game_is_unranked,
                 rejects_unknown_accounts_and_duplicate_seats,
                 the_leaderboard_sorts_and_limits,

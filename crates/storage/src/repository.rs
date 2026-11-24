@@ -70,6 +70,13 @@ pub trait GameResultRepository: Send + Sync {
     /// Only on database failure.
     async fn stats(&self, id: PlayerId) -> Result<PlayerStats, StorageError>;
 
+    /// Recorded games, newest first (later recorded first on equal times),
+    /// each with every seat, guests included, in its original order.
+    ///
+    /// # Errors
+    /// Only on database failure.
+    async fn recent_games(&self, limit: u32) -> Result<Vec<FinishedGame>, StorageError>;
+
     /// Accounts with at least one ranked game, best first by `sort`, then
     /// by username; at most `limit` entries.
     ///

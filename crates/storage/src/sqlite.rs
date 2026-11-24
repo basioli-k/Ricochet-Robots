@@ -8,7 +8,8 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRo
 use sqlx::{Row, Sqlite, Transaction};
 
 use crate::model::{
-    Account, FinishedGame, LeaderboardEntry, LeaderboardSort, Locale, PlayerStats, Seat,
+    Account, FinishedGame, LeaderboardEntry, LeaderboardSort, Locale, Participant, PlayerStats,
+    Seat,
 };
 use crate::repository::{GameResultRepository, PlayerRepository, StorageError, check_seats};
 
@@ -172,6 +173,23 @@ fn account_from(row: &SqliteRow) -> Result<Account, StorageError> {
     })
 }
 
+fn participant_from(row: &SqliteRow) -> Result<Participant, StorageError> {
+    let account: Option<String> = row.try_get("account_id").map_err(db)?;
+    let guest: Option<String> = row.try_get("guest_name").map_err(db)?;
+    let seat = match (account, guest) {
+        (Some(id), None) => {
+            Seat::Account(PlayerId::new(u128::from_str_radix(&id, 16).map_err(db)?))
+        }
+        (None, Some(name)) => Seat::Guest(name),
+        _ => return Err(corrupt("seat is neither an account nor a guest")),
+    };
+    let tokens: i64 = row.try_get("tokens").map_err(db)?;
+    Ok(Participant {
+        seat,
+        tokens: u32::try_from(tokens).map_err(db)?,
+    })
+}
+
 fn stats_from(row: &SqliteRow) -> Result<PlayerStats, StorageError> {
     let count = |column: &str| -> Result<u64, StorageError> {
         let value: i64 = row.try_get(column).map_err(db)?;
@@ -248,6 +266,38 @@ impl GameResultRepository for SqliteStore {
                 .map_err(db)?;
         insert_seats(&mut tx, game_id, game).await?;
         tx.commit().await.map_err(db)
+    }
+
+    async fn recent_games(&self, limit: u32) -> Result<Vec<FinishedGame>, StorageError> {
+        let games = sqlx::query(
+            "SELECT id, finished_at FROM games ORDER BY finished_at DESC, id DESC LIMIT ?",
+        )
+        .bind(i64::from(limit))
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+        let mut result = Vec::with_capacity(games.len());
+        for game in &games {
+            let game_id: i64 = game.try_get("id").map_err(db)?;
+            let finished_at: i64 = game.try_get("finished_at").map_err(db)?;
+            // rowid keeps seats in the order they were recorded.
+            let seats = sqlx::query(
+                "SELECT account_id, guest_name, tokens FROM game_players WHERE game_id = ? ORDER BY rowid",
+            )
+            .bind(game_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(db)?;
+            let players = seats
+                .iter()
+                .map(participant_from)
+                .collect::<Result<_, _>>()?;
+            result.push(FinishedGame {
+                finished_at: Timestamp(u64::try_from(finished_at).map_err(db)?),
+                players,
+            });
+        }
+        Ok(result)
     }
 
     async fn stats(&self, id: PlayerId) -> Result<PlayerStats, StorageError> {

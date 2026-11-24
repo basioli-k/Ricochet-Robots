@@ -19,8 +19,8 @@ pub struct InMemoryStore {
 #[derive(Debug, Default)]
 struct Inner {
     accounts: Vec<Account>,
-    /// Per stored ranked game: (account, tokens, won).
-    ranked_seats: Vec<(PlayerId, u32, bool)>,
+    /// Every recorded game, oldest first.
+    games: Vec<FinishedGame>,
 }
 
 impl InMemoryStore {
@@ -31,7 +31,8 @@ impl InMemoryStore {
 
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
         // A panic while holding the lock can't leave `Inner` half-updated:
-        // every mutation is a single push or field assignment.
+        // each method checks everything first, then makes one push or
+        // field assignment.
         self.inner
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -47,13 +48,15 @@ impl Inner {
     }
 
     fn stats(&self, id: PlayerId) -> PlayerStats {
-        self.ranked_seats
+        self.games
             .iter()
-            .filter(|(who, _, _)| *who == id)
-            .fold(PlayerStats::default(), |s, &(_, tokens, won)| PlayerStats {
+            .filter(|g| g.is_ranked())
+            .flat_map(|g| g.players.iter().zip(g.winners()))
+            .filter(|(p, _)| p.seat == Seat::Account(id))
+            .fold(PlayerStats::default(), |s, (p, won)| PlayerStats {
                 games_played: s.games_played + 1,
                 games_won: s.games_won + u64::from(won),
-                tokens_won: s.tokens_won + u64::from(tokens),
+                tokens_won: s.tokens_won + u64::from(p.tokens),
             })
     }
 }
@@ -118,14 +121,17 @@ impl GameResultRepository for InMemoryStore {
                 inner.account_mut(id)?;
             }
         }
-        if game.is_ranked() {
-            for (p, won) in game.players.iter().zip(game.winners()) {
-                if let Seat::Account(id) = p.seat {
-                    inner.ranked_seats.push((id, p.tokens, won));
-                }
-            }
-        }
+        inner.games.push(game.clone());
         Ok(())
+    }
+
+    async fn recent_games(&self, limit: u32) -> Result<Vec<FinishedGame>, StorageError> {
+        let inner = self.lock();
+        // Newest first; among equal times, the later recorded first.
+        let mut games: Vec<&FinishedGame> = inner.games.iter().rev().collect();
+        games.sort_by_key(|g| std::cmp::Reverse(g.finished_at)); // stable
+        games.truncate(usize::try_from(limit).unwrap_or(usize::MAX));
+        Ok(games.into_iter().cloned().collect())
     }
 
     async fn stats(&self, id: PlayerId) -> Result<PlayerStats, StorageError> {
