@@ -1,0 +1,3 @@
+[submodule "standards"]
+	path = .agents/standards
+	url = https://github.com/basioli-k/agents-standards.git
