@@ -38,7 +38,10 @@ function create_table_users()
 	$db = DB::getConnection();
 
 	if( has_table( 'ricochet_robots_players' ) )
-		exit( 'Table ricochet_robots_players already exists.' );
+	{
+		echo 'Table ricochet_robots_players already exists.';
+		exit( 1 );
+	}
 
 	try
 	{
