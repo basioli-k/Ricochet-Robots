@@ -212,24 +212,25 @@ impl RoomState {
         let since = self.since?;
         let after = |ms: u64| Some(Timestamp(since.at.0.saturating_add(ms)));
         match game.round().phase() {
-            Phase::Bidding => game.round().bidding_closes_at(),
+            Phase::Bidding => game
+                .round()
+                .bidding_closes_at()
+                .or_else(|| after(IDLE_ROUND_MS)),
             Phase::Demonstrating { .. } => after(DEMONSTRATION_MS),
             Phase::Solved { .. } | Phase::Unsolved => after(RESULT_PAUSE_MS),
         }
     }
 
-    /// Posts a chat message, trimmed.
+    /// Posts a chat message, trimmed. Hidden characters are refused: they
+    /// could reorder or disguise what others see.
     ///
     /// # Errors
     /// `NotMember`, or `BadChat` for an empty or overlong message or one
-    /// with control characters.
+    /// with control, bidirectional or zero-width characters.
     pub fn chat(&mut self, player: PlayerId, text: &str) -> Events {
         self.require_member(player)?;
         let text = text.trim();
-        if text.is_empty()
-            || text.chars().count() > CHAT_MAX_CHARS
-            || text.chars().any(char::is_control)
-        {
+        if text.is_empty() || text.chars().count() > CHAT_MAX_CHARS || text.chars().any(is_hidden) {
             return Err(RoomError::BadChat);
         }
         Ok(vec![RoomEvent::Chat {
@@ -462,6 +463,20 @@ const fn stage(phase: Phase) -> Phase {
         },
         other => other,
     }
+}
+
+/// Control characters, bidirectional overrides and isolates, and
+/// zero-width or invisible formatting characters.
+fn is_hidden(c: char) -> bool {
+    c.is_control()
+        || matches!(
+            c,
+            '\u{200b}'..='\u{200f}'
+                | '\u{202a}'..='\u{202e}'
+                | '\u{2060}'..='\u{2064}'
+                | '\u{2066}'..='\u{2069}'
+                | '\u{feff}'
+        )
 }
 
 fn scores(game: &Game) -> Vec<(PlayerId, u32)> {

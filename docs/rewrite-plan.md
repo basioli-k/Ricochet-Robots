@@ -237,6 +237,11 @@ ricochet-robots/
     `RobotMoved`, `RoundResolved`, `Chat`, `GameOver { leaders, scores }`,
     `Error { code }`
   - Player IDs travel as 32 hex digits; times as milliseconds since the epoch.
+  - The socket upgrade requires our own `Origin` (browsers send cookies on
+    cross-site WebSocket requests). Messages are capped at 4 KiB; open
+    sockets per player and per client are capped; a socket that falls
+    behind or stops reading is closed (the client reconnects for a fresh
+    snapshot). Heartbeat: a ping every 20 s, closed after 60 s of silence.
 - Timers run on the server; clients only display the deadline.
 - Disconnects detected by WebSocket close and heartbeat. Results persisted
   exactly once, when the room's game ends.

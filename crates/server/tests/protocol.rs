@@ -22,7 +22,13 @@ fn player_ids_are_32_hex_digits_both_ways() {
     let text = player_id(ANA);
     assert_eq!(text, "000000000000000000000000000000a1");
     assert_eq!(parse_player_id(&text), Some(ANA));
-    for bad in ["a1", "zz000000000000000000000000000000", ""] {
+    for bad in [
+        "a1",
+        "zz000000000000000000000000000000",
+        "",
+        "+00000000000000000000000000000a1",
+        "000000000000000000000000000000A1",
+    ] {
         assert_eq!(parse_player_id(bad), None, "{bad}");
     }
 }
@@ -44,6 +50,18 @@ fn client_messages_are_tagged_by_type() {
     assert_eq!(
         parse(json!({ "type": "start" })).unwrap(),
         ClientMessage::Start
+    );
+    assert_eq!(
+        parse(json!({ "type": "chat", "text": "hi" })).unwrap(),
+        ClientMessage::Chat { text: "hi".into() }
+    );
+    assert_eq!(
+        parse(json!({ "type": "concede" })).unwrap(),
+        ClientMessage::Concede
+    );
+    assert_eq!(
+        parse(json!({ "type": "leave" })).unwrap(),
+        ClientMessage::Leave
     );
     for bad in [
         json!({ "type": "bid", "moves": 300 }),

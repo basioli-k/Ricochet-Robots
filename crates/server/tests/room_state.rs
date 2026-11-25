@@ -352,7 +352,11 @@ fn the_view_shows_the_round_and_when_its_stage_ends() {
     assert_eq!(before.game, None);
 
     room.start(ANA, &mut InOrder, t(0)).unwrap();
-    assert_eq!(room.view().game.unwrap().deadline, None, "no bids yet");
+    assert_eq!(
+        room.view().game.unwrap().deadline,
+        Some(t(IDLE_ROUND_MS)),
+        "abandoned unless someone bids"
+    );
     room.bid(ANA, 2, t(500)).unwrap();
     assert_eq!(
         room.view().game,
@@ -406,6 +410,9 @@ fn chat_is_trimmed_and_bounded() {
         &"a".repeat(CHAT_MAX_CHARS + 1),
         "a\u{7}b",
         "line\nbreak",
+        "evil\u{202e}txt",
+        "zero\u{200b}width",
+        "iso\u{2066}late",
     ] {
         assert_eq!(room.chat(ANA, bad), Err(RoomError::BadChat), "{bad:?}");
     }

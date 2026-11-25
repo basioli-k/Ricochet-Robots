@@ -21,7 +21,8 @@ pub fn player_id(id: PlayerId) -> String {
 /// The inverse of [`player_id`]; `None` for anything else.
 #[must_use]
 pub fn parse_player_id(text: &str) -> Option<PlayerId> {
-    if text.len() != 32 {
+    // Only the form player_id writes: no sign, no uppercase.
+    if text.len() != 32 || !text.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
         return None;
     }
     u128::from_str_radix(text, 16).ok().map(PlayerId::new)
@@ -380,7 +381,11 @@ pub enum ClientMessage {
     Leave,
 }
 
-/// What the server sends: a snapshot on connecting, then each change.
+/// What the server sends: a snapshot on connecting, then each change. An
+/// event can repeat what the snapshot already shows, so clients apply
+/// events idempotently (each carries the resulting state or keys on IDs).
+/// An `error` with code `lagged` means the socket fell behind and is
+/// closing: reconnect for a fresh snapshot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[ts(export)]

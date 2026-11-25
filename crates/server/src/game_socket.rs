@@ -20,7 +20,7 @@ use crate::AppState;
 use crate::connections::Ticket;
 use crate::identity::{self, ApiError, Identity};
 use crate::protocol::{ClientMessage, ServerMessage, parse_player_id, player_id, room_error_code};
-use crate::rate_limit::client_key;
+use crate::rate_limit::{RateLimiter, client_key};
 use crate::rooms::actor::{CallError, RoomHandle};
 use crate::rooms::state::{Member, RoomEvent};
 
@@ -199,7 +199,10 @@ async fn converse(
                         Some(Outcome::Refused(code)) => Some(code),
                         None => None,
                     },
-                    Message::Binary(_) => Some("bad_message"),
+                    Message::Binary(_) if allow(&*state.action_limiter, state, me) => {
+                        Some("bad_message")
+                    }
+                    Message::Binary(_) => Some("rate_limited"),
                     Message::Close(_) => return,
                     // Pings are answered by the library; any frame proves life.
                     Message::Ping(_) | Message::Pong(_) => None,
@@ -232,6 +235,10 @@ async fn converse(
     }
 }
 
+fn allow(limiter: &dyn RateLimiter, state: &AppState, me: &Member) -> bool {
+    limiter.allow(&player_id(me.id), state.clock.now())
+}
+
 enum Outcome {
     Leave,
     Refused(&'static str),
@@ -239,21 +246,20 @@ enum Outcome {
 
 /// Runs one client message as the socket's player; `None` when it worked.
 async fn handle(state: &AppState, room: &RoomHandle, me: &Member, text: &str) -> Option<Outcome> {
-    let Ok(message) = serde_json::from_str::<ClientMessage>(text) else {
-        return Some(Outcome::Refused("bad_message"));
-    };
-    let now = state.clock.now();
-    let key = player_id(me.id);
+    let message = serde_json::from_str::<ClientMessage>(text);
+    // Chat has its own limit; everything else that costs work, including
+    // garbage, counts as an action. Leaving is always allowed.
     let allowed = match &message {
-        ClientMessage::Chat { .. } => state.chat_limiter.allow(&key, now),
-        ClientMessage::Bid { .. } | ClientMessage::Move { .. } => {
-            state.action_limiter.allow(&key, now)
-        }
-        ClientMessage::Start | ClientMessage::Concede | ClientMessage::Leave => true,
+        Ok(ClientMessage::Leave) => true,
+        Ok(ClientMessage::Chat { .. }) => allow(&*state.chat_limiter, state, me),
+        _ => allow(&*state.action_limiter, state, me),
     };
     if !allowed {
         return Some(Outcome::Refused("rate_limited"));
     }
+    let Ok(message) = message else {
+        return Some(Outcome::Refused("bad_message"));
+    };
     let player = me.id;
     let result = match message {
         ClientMessage::Start => room.start(player).await,

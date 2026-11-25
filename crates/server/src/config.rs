@@ -72,7 +72,7 @@ impl Config {
 
 impl Config {
     /// The `Origin` browsers send from the public URL: its scheme and host
-    /// (with port), without any path.
+    /// with any non-default port, without a path.
     #[must_use]
     pub fn public_origin(&self) -> String {
         let url = &self.public_base_url;
@@ -80,7 +80,12 @@ impl Config {
         let end = url[host_start..]
             .find('/')
             .map_or(url.len(), |i| host_start + i);
-        url[..end].to_owned()
+        let origin = &url[..end];
+        let default_port = if self.secure_cookies() { ":443" } else { ":80" };
+        origin
+            .strip_suffix(default_port)
+            .unwrap_or(origin)
+            .to_owned()
     }
 
     /// Whether cookies must be Secure: the public URL is HTTPS.
@@ -168,6 +173,9 @@ mod tests {
             origin("HTTPS://x.example:8443/game/"),
             "https://x.example:8443"
         );
+        assert_eq!(origin("https://x.example:443"), "https://x.example");
+        assert_eq!(origin("http://x.example:80/"), "http://x.example");
+        assert_eq!(origin("http://x.example:443"), "http://x.example:443");
     }
 
     #[test]

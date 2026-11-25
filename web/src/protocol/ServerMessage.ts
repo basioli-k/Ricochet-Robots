@@ -8,7 +8,11 @@ import type { Score } from "./Score";
 import type { Target } from "./Target";
 
 /**
- * What the server sends: a snapshot on connecting, then each change.
+ * What the server sends: a snapshot on connecting, then each change. An
+ * event can repeat what the snapshot already shows, so clients apply
+ * events idempotently (each carries the resulting state or keys on IDs).
+ * An `error` with code `lagged` means the socket fell behind and is
+ * closing: reconnect for a fresh snapshot.
  */
 export type ServerMessage = { "type": "snapshot", 
 /**

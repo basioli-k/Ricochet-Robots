@@ -192,6 +192,12 @@ async fn only_signed_in_players_from_our_origin_reach_a_room() {
         refused(t.addr, &t.room, cookie, "https://evil.example").await,
         403
     );
+    let mut no_origin = request(t.addr, &t.room, cookie, ORIGIN);
+    no_origin.headers_mut().remove("origin");
+    match tokio_tungstenite::connect_async(no_origin).await {
+        Err(tungstenite::Error::Http(response)) => assert_eq!(response.status().as_u16(), 403),
+        other => panic!("expected a refusal, got {:?}", other.map(|_| ())),
+    }
     assert_eq!(refused(t.addr, &t.room, None, ORIGIN).await, 401);
     assert_eq!(refused(t.addr, "no-such-room", cookie, ORIGIN).await, 404);
 }
@@ -219,15 +225,22 @@ async fn bad_messages_and_floods_are_refused_by_code() {
     );
     send(&mut ana, json!({ "type": "chat", "text": "again" })).await;
     assert_eq!(recv_type(&mut ana, "error").await["code"], "rate_limited");
+    let (mut bob, _) = t.join(&t.bob).await;
+    send(&mut bob, json!({ "type": "chat", "text": "mine" })).await;
+    assert_eq!(
+        recv_type(&mut bob, "chat").await["text"],
+        "mine",
+        "per player"
+    );
     t.clock.advance(1_000);
     send(&mut ana, json!({ "type": "chat", "text": "later" })).await;
-    assert_eq!(recv_type(&mut ana, "chat").await["text"], "later");
+    recv_where(&mut ana, |m| m["type"] == "chat" && m["text"] == "later").await;
 }
 
 #[tokio::test]
 async fn bids_and_moves_are_rate_limited_per_player() {
     let t = table(Limits {
-        actions: 1,
+        actions: 2,
         ..Limits::default()
     })
     .await;
@@ -236,8 +249,19 @@ async fn bids_and_moves_are_rate_limited_per_player() {
     recv_type(&mut ana, "round_started").await;
     send(&mut ana, json!({ "type": "bid", "moves": 9 })).await;
     recv_type(&mut ana, "bid_placed").await;
+    // Starting used one of Ana's two actions this second, the bid the other.
     send(&mut ana, json!({ "type": "bid", "moves": 8 })).await;
     assert_eq!(recv_type(&mut ana, "error").await["code"], "rate_limited");
+    send(&mut ana, json!({ "type": "fly" })).await;
+    assert_eq!(
+        recv_type(&mut ana, "error").await["code"],
+        "rate_limited",
+        "garbage counts too"
+    );
+    // The limit is Ana's own: Bob can still bid.
+    let (mut bob, _) = t.join(&t.bob).await;
+    send(&mut bob, json!({ "type": "bid", "moves": 7 })).await;
+    assert_eq!(recv_type(&mut bob, "bid_placed").await["moves"], 7);
 }
 
 #[tokio::test]
@@ -268,10 +292,14 @@ async fn a_silent_client_is_dropped_after_the_heartbeat_timeout() {
     // Bob never reads again, so he never answers the server's pings.
     let (_bob, _) = t.join(&t.bob).await;
     recv_type(&mut ana, "joined").await;
-    assert_eq!(
-        recv_type(&mut ana, "left").await["player"],
-        t.bob.1.as_str()
-    );
+    // The 1 s timeout plus a ping interval, with room to spare.
+    let left = tokio::time::timeout(
+        Duration::from_secs(5),
+        recv_where_patiently(&mut ana, |m| m["type"] == "left"),
+    )
+    .await
+    .expect("Bob dropped within 5 s");
+    assert_eq!(left["player"], t.bob.1.as_str());
 }
 
 #[tokio::test]
@@ -376,4 +404,16 @@ async fn a_second_socket_keeps_the_player_in_the_room() {
     send(&mut second, json!({ "type": "chat", "text": "still here" })).await;
     let next = recv_where(&mut ana, |m| m["type"] == "chat" || m["type"] == "left").await;
     assert_eq!(next["type"], "chat");
+}
+
+/// Like `recv_where`, without its 2 s deadline (the caller sets one).
+async fn recv_where_patiently(client: &mut Client, wanted: impl Fn(&Value) -> bool) -> Value {
+    loop {
+        if let Some(Ok(Message::Text(text))) = client.next().await {
+            let message: Value = serde_json::from_str(&text).unwrap();
+            if wanted(&message) {
+                return message;
+            }
+        }
+    }
 }
