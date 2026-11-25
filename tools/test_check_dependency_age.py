@@ -66,7 +66,12 @@ class NpmPackages(unittest.TestCase):
                     "resolved": "git+ssh://git@example.invalid/x.git#abc",
                 },
                 "node_modules/linked": {"link": True, "resolved": "packages/linked"},
-                "node_modules/bundled": {"version": "2.0.0", "inBundle": True},
+                "node_modules/parent/node_modules/bundled": {"version": "2.0.0", "inBundle": True},
+                "node_modules/own-bundle": {
+                    "version": "3.0.0",
+                    "inBundle": True,
+                    "resolved": "https://registry.npmjs.org/own-bundle/-/own-bundle-3.0.0.tgz",
+                },
                 "node_modules/other-registry": {
                     "version": "1.0.0",
                     "resolved": "https://npm.example.invalid/other-registry/-/other-registry-1.0.0.tgz",
@@ -81,7 +86,8 @@ class NpmPackages(unittest.TestCase):
 
     def test_splits_registry_from_unverifiable_and_skips_root_links_and_bundles(self):
         registry, other = check.npm_packages(self.LOCK)
-        self.assertEqual(registry, [("@scope/pkg", "1.2.3")])
+        # The project's own bundled dependency is still fetched, so checked.
+        self.assertEqual(registry, [("@scope/pkg", "1.2.3"), ("own-bundle", "3.0.0")])
         # A tarball for another package or version can't vouch for this entry.
         self.assertEqual(
             other, [("from-git", "0.1.0"), ("lodash", "4.17.21"), ("other-registry", "1.0.0")]

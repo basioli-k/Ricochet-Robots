@@ -6,7 +6,9 @@ Cargo.lock (crates.io) and web/package-lock.json (npm registry). A
 dependency from anywhere else (git, a tarball URL) has no publish time to
 check, so it fails too; local path and workspace packages are skipped (so
 third-party code vendored as a path dependency must go through review), as
-are npm packages bundled inside another package, whose parent is checked.
+are npm packages bundled inside another package's tarball, whose parent is
+checked. The project's own bundleDependencies are still downloaded from the
+registry, so they are checked like any other package.
 
 Exceptions, each with a reason, go in .dependency-age-allow:
     crates:name@version  # why
@@ -97,8 +99,10 @@ def npm_packages(lock_text):
     """(registry packages, unverifiable sources) in a package-lock.json v3."""
     registry, other = set(), set()
     for path, info in json.loads(lock_text).get("packages", {}).items():
-        if not path or info.get("link") or info.get("inBundle"):
-            continue  # the root, a workspace link, or shipped in its parent
+        if not path or info.get("link"):
+            continue  # the root package or a workspace link
+        if info.get("inBundle") and path.count("node_modules/") >= 2:
+            continue  # shipped inside its parent's tarball, which is checked
         name = info.get("name") or path.rsplit("node_modules/", 1)[-1]
         key = (name, info.get("version", "?"))
         resolved = info.get("resolved", "")
