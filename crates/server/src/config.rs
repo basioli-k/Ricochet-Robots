@@ -2,6 +2,8 @@
 
 use std::net::SocketAddr;
 
+use crate::rooms::manager::RoomLimits;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     pub bind: SocketAddr,
@@ -12,6 +14,11 @@ pub struct Config {
     /// Guest starts allowed per client IP within `guest_window_secs`.
     pub guest_starts: usize,
     pub guest_window_secs: u64,
+    /// Open-room caps and room size.
+    pub rooms: RoomLimits,
+    /// Room creations allowed per client within `room_create_window_secs`.
+    pub room_creates: usize,
+    pub room_create_window_secs: u64,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -29,7 +36,7 @@ impl Config {
     /// in tests). Every setting has a development default.
     ///
     /// # Errors
-    /// On an invalid bind address or public URL.
+    /// On an invalid bind address, public URL or limit.
     pub fn from_vars(var: impl Fn(&str) -> Option<String>) -> Result<Self, ConfigError> {
         let bind_text = var("RR_BIND").unwrap_or_else(|| "127.0.0.1:8080".into());
         let bind = bind_text
@@ -41,6 +48,13 @@ impl Config {
             public_base_url: public_base_url(var("RR_PUBLIC_BASE_URL"))?,
             guest_starts: limit(&var, "RR_GUEST_STARTS", 5)?,
             guest_window_secs: limit(&var, "RR_GUEST_WINDOW_SECS", 600)?,
+            rooms: RoomLimits {
+                global: limit(&var, "RR_ROOMS_MAX", 200)?,
+                per_owner: limit(&var, "RR_ROOMS_PER_OWNER", 2)?,
+                capacity: limit(&var, "RR_ROOM_CAPACITY", 8)?,
+            },
+            room_creates: limit(&var, "RR_ROOM_CREATES", 5)?,
+            room_create_window_secs: limit(&var, "RR_ROOM_CREATE_WINDOW_SECS", 600)?,
         })
     }
 }
@@ -109,6 +123,8 @@ mod tests {
         assert_eq!(c.database_url, "sqlite://ricochet.db");
         assert_eq!(c.public_base_url, "http://localhost:8080");
         assert_eq!((c.guest_starts, c.guest_window_secs), (5, 600));
+        assert_eq!(c.rooms, RoomLimits::default());
+        assert_eq!((c.room_creates, c.room_create_window_secs), (5, 600));
     }
 
     #[test]
@@ -119,8 +135,22 @@ mod tests {
             ("RR_PUBLIC_BASE_URL", "https://ricochet.example"),
             ("RR_GUEST_STARTS", "7"),
             ("RR_GUEST_WINDOW_SECS", " 60 "),
+            ("RR_ROOMS_MAX", "50"),
+            ("RR_ROOMS_PER_OWNER", "1"),
+            ("RR_ROOM_CAPACITY", "4"),
+            ("RR_ROOM_CREATES", "3"),
+            ("RR_ROOM_CREATE_WINDOW_SECS", "120"),
         ])
         .unwrap();
+        assert_eq!(
+            c.rooms,
+            RoomLimits {
+                global: 50,
+                per_owner: 1,
+                capacity: 4
+            }
+        );
+        assert_eq!((c.room_creates, c.room_create_window_secs), (3, 120));
         assert_eq!((c.guest_starts, c.guest_window_secs), (7, 60));
         assert_eq!(c.bind, "0.0.0.0:9000".parse().unwrap());
         assert_eq!(c.database_url, "sqlite://other.db");
@@ -162,7 +192,15 @@ mod tests {
 
     #[test]
     fn rejects_a_zero_or_malformed_limit() {
-        for name in ["RR_GUEST_STARTS", "RR_GUEST_WINDOW_SECS"] {
+        for name in [
+            "RR_GUEST_STARTS",
+            "RR_GUEST_WINDOW_SECS",
+            "RR_ROOMS_MAX",
+            "RR_ROOMS_PER_OWNER",
+            "RR_ROOM_CAPACITY",
+            "RR_ROOM_CREATES",
+            "RR_ROOM_CREATE_WINDOW_SECS",
+        ] {
             for bad in ["0", "-1", "five", ""] {
                 assert_eq!(
                     config(&[(name, bad)]),
