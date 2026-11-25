@@ -1,0 +1,4 @@
+# ts-rs writes the protocol's TypeScript types here when the tests run;
+# CI checks the committed copies are current.
+[env]
+TS_RS_EXPORT_DIR = { value = "web/src/protocol", relative = true }

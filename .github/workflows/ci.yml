@@ -27,6 +27,12 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
+      # The tests regenerate the protocol's TypeScript types; they must
+      # match what is committed.
+      - name: Protocol types are current
+        run: |
+          git diff --exit-code -- web/src/protocol
+          test -z "$(git status --porcelain -- web/src/protocol)"
 
   web:
     runs-on: ubuntu-latest
