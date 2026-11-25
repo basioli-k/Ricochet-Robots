@@ -11,6 +11,7 @@ use tower_sessions::Session;
 use crate::AppState;
 use crate::identity::{self, ApiError, Identity};
 use crate::names::PlayerName;
+use crate::rate_limit::client_key;
 
 const INVALID: ApiError = ApiError {
     status: StatusCode::BAD_REQUEST,
@@ -54,7 +55,7 @@ pub async fn start(
     identity::require_csrf(&session, &headers).await?;
     if !state
         .guest_limiter
-        .allow(&peer.ip().to_string(), state.clock.now())
+        .allow(&client_key(peer.ip()), state.clock.now())
     {
         return Err(LIMITED);
     }

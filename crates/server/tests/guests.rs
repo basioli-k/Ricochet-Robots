@@ -18,9 +18,11 @@ use storage::{Account, InMemoryStore, Locale, PlayerRepository};
 use tower::ServiceExt;
 use tower_sessions::MemoryStore;
 
-/// An app whose clients all connect from one address, with an account
-/// named "ana" and a guest-start limit of `limit` per window.
-async fn app_with(limit: usize) -> Router {
+const CLIENT: [u8; 4] = [203, 0, 113, 7];
+
+/// One app per client address, sharing state and sessions, with an
+/// account named "ana" and a guest-start limit of `limit` per minute.
+async fn apps_at(limit: usize, clients: &[SocketAddr]) -> (Vec<Router>, Arc<FakeClock>) {
     let store = Arc::new(InMemoryStore::new());
     let ana = Account {
         id: PlayerId::new(1),
@@ -30,14 +32,28 @@ async fn app_with(limit: usize) -> Router {
         created_at: Timestamp(0),
     };
     store.create(&ana).await.unwrap();
+    let clock = Arc::new(FakeClock::at(1_000));
     let state = AppState {
         players: store.clone(),
         games: store,
-        clock: Arc::new(FakeClock::at(1_000)),
+        clock: clock.clone(),
         guest_limiter: Arc::new(SlidingWindow::new(limit, 60_000)),
     };
-    app(state, sessions::layer(MemoryStore::default(), false))
-        .layer(MockConnectInfo(SocketAddr::from(([203, 0, 113, 7], 4000))))
+    let sessions = MemoryStore::default();
+    let apps = clients
+        .iter()
+        .map(|&client| {
+            app(state.clone(), sessions::layer(sessions.clone(), false))
+                .layer(MockConnectInfo(client))
+        })
+        .collect();
+    (apps, clock)
+}
+
+/// An app whose clients all connect from one IPv4 address.
+async fn app_with(limit: usize) -> Router {
+    let (mut apps, _) = apps_at(limit, &[SocketAddr::from((CLIENT, 4000))]).await;
+    apps.remove(0)
 }
 
 /// The cookie pair from a response's Set-Cookie, if any.
@@ -155,4 +171,32 @@ async fn guest_starts_are_rate_limited_per_address() {
     let response = start(&app, &pair, &csrf, "Visitor1").await;
     assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
     assert_eq!(json_body(response).await["error"], "rate_limited");
+}
+
+#[tokio::test]
+async fn ipv6_clients_share_the_limit_of_their_64_prefix() {
+    let at = |ip: &str| SocketAddr::new(ip.parse().unwrap(), 4000);
+    let (apps, _) = apps_at(
+        1,
+        &[
+            at("2001:db8:1:2::1"),
+            at("2001:db8:1:2::2"),
+            at("2001:db8:1:3::1"),
+        ],
+    )
+    .await;
+    let mut statuses = Vec::new();
+    for app in &apps {
+        let (pair, csrf, _) = session(app, None).await;
+        statuses.push(start(app, &pair.unwrap(), &csrf, "Visitor1").await.status());
+    }
+    assert_eq!(
+        statuses,
+        [
+            StatusCode::OK,
+            StatusCode::TOO_MANY_REQUESTS,
+            StatusCode::OK
+        ],
+        "a fresh address in the same /64 doesn't reset the limit"
+    );
 }
