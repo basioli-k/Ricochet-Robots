@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { keyAction } from './keys';
+import { isTyping, keyAction } from './keys';
+
+describe('isTyping', () => {
+  it('is true in form fields only', () => {
+    for (const tag of ['INPUT', 'textarea', 'SELECT']) expect(isTyping(tag)).toBe(true);
+    for (const tag of ['BUTTON', 'BODY', 'DIV', undefined]) expect(isTyping(tag)).toBe(false);
+  });
+});
 
 describe('keyAction', () => {
   it('moves with arrows and WASD in either case', () => {

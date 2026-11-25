@@ -133,7 +133,7 @@ export const hr: Messages = {
   moveDown: 'Dolje',
   moveLeft: 'Lijevo',
   moveRight: 'Desno',
-  roundSolved: 'Rješenje: {name}',
+  roundSolved: 'Riješio/la: {name}',
   roomCode: 'Soba {code}',
   roundUnsolved: 'Nitko nije riješio.',
   nextRound: 'Sljedeća runda počinje uskoro.',

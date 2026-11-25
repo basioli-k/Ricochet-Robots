@@ -17,6 +17,9 @@ export interface Socket {
 
 export type SocketFactory = (url: string) => Socket;
 
+/** Pause before reconnecting a socket the server closed for falling behind. */
+export const REJOIN_DELAY_MS = 1_000;
+
 /** The game socket's URL for room `id`, on the page's own host. */
 export function socketUrl(location: Pick<Location, 'protocol' | 'host'>, id: string): string {
   const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -49,6 +52,7 @@ export class GameModel {
     socket.onopen = () => {
       this.status = 'open';
       this.error = null;
+      this.rejoin = false;
     };
     socket.onmessage = (event) => {
       if (typeof event.data !== 'string') return;
@@ -64,10 +68,13 @@ export class GameModel {
       if (this.socket !== socket) return;
       this.socket = null;
       this.status = 'closed';
-      // The server closes a socket that fell behind; catch up at once.
+      // The server closes a socket that fell behind; catch up after a
+      // pause, so a client that keeps falling behind doesn't spin.
       if (this.rejoin) {
         this.rejoin = false;
-        this.connect();
+        setTimeout(() => {
+          if (this.status === 'closed' && this.socket === null) this.connect();
+        }, REJOIN_DELAY_MS);
       }
     };
     this.socket = socket;

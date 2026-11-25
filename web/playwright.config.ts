@@ -22,7 +22,7 @@ export default defineConfig({
   webServer: [
     {
       // A fresh database every run, so nothing leaks between runs.
-      command: 'rm -f target/e2e.db && cargo run --locked -p server',
+      command: 'rm -f target/e2e.db* && cargo run --locked -p server',
       cwd: '..',
       url: 'http://127.0.0.1:8080/health',
       timeout: 600_000,

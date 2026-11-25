@@ -4,7 +4,7 @@
   import type { Robot } from '../../protocol/Robot';
   import type { AppModel } from '../app.svelte';
   import { robotName, ROBOTS, shapeName, targetGlyph } from '../game/board';
-  import { keyAction } from '../game/keys';
+  import { isTyping, keyAction } from '../game/keys';
   import { GameModel, socketUrl } from '../game/model.svelte';
   import { nameOf, standings } from '../game/state';
   import { t } from '../i18n/locale.svelte';
@@ -42,10 +42,7 @@
   ];
 
   function onkeydown(event: KeyboardEvent) {
-    const typing =
-      event.target instanceof HTMLInputElement ||
-      event.target instanceof HTMLTextAreaElement ||
-      event.target instanceof HTMLSelectElement;
+    const typing = isTyping(event.target instanceof Element ? event.target.tagName : undefined);
     if (typing || event.ctrlKey || event.metaKey || event.altKey) return;
     const action = keyAction(event.key);
     if (!action) return;

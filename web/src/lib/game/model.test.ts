@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ServerMessage } from '../../protocol/ServerMessage';
-import { GameModel, socketUrl, type Socket } from './model.svelte';
+import { GameModel, REJOIN_DELAY_MS, socketUrl, type Socket } from './model.svelte';
 
 const ANA = 'a'.repeat(32);
 
@@ -151,6 +151,7 @@ describe('GameModel', () => {
   });
 
   it('reconnects by itself after falling behind, and ignores garbage', () => {
+    vi.useFakeTimers();
     const sockets: FakeSocket[] = [];
     const game = new GameModel('ws://x', () => {
       const socket = new FakeSocket();
@@ -163,11 +164,15 @@ describe('GameModel', () => {
     expect(game.error).toBeNull();
     sockets[0]?.server({ type: 'error', code: 'lagged' });
     sockets[0]?.onclose?.(new Event('close') as CloseEvent);
+    expect(sockets).toHaveLength(1);
+    vi.advanceTimersByTime(REJOIN_DELAY_MS);
     expect(sockets).toHaveLength(2);
     expect(game.status).toBe('connecting');
     sockets[1]?.onclose?.(new Event('close') as CloseEvent);
+    vi.advanceTimersByTime(REJOIN_DELAY_MS);
     expect(sockets).toHaveLength(2);
     expect(game.status).toBe('closed');
+    vi.useRealTimers();
   });
 
   it('keeps a chat message that could not be sent', () => {

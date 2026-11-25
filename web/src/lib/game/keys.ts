@@ -25,6 +25,14 @@ const robots: Readonly<Record<string, Robot>> = {
   y: 'yellow',
 };
 
+/** Elements whose keys are text, not moves. */
+const FORM_FIELDS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
+
+/** Whether a key press on an element with this tag name is typing. */
+export function isTyping(tagName: string | undefined): boolean {
+  return tagName !== undefined && FORM_FIELDS.has(tagName.toUpperCase());
+}
+
 /** What a key press means on the board: arrows or WASD move, 1–4 or R/B/G/Y pick a robot. */
 export function keyAction(key: string): KeyAction {
   const k = key.length === 1 ? key.toLowerCase() : key;

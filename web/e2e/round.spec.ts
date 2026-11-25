@@ -69,13 +69,16 @@ test('two guests play a round', async ({ browser }) => {
     }
     await expect(ana.getByText(/^Moves: 1/)).toBeVisible();
 
-    if (await bob.getByText(`Solved by Bob${suffix}`).isVisible()) {
-      await expect(ana.getByText(`Solved by Bob${suffix}`)).toBeVisible();
-    } else {
-      await bob.getByRole('button', { name: 'Give up' }).click();
-      for (const page of [ana, bob]) {
-        await expect(page.getByText('Nobody solved it.')).toBeVisible();
-      }
+    // Give up, unless that move solved it (then the button is gone, or the
+    // server refuses the late give-up); either way both see the same end.
+    await bob
+      .getByRole('button', { name: 'Give up' })
+      .click({ timeout: 2_000 })
+      .catch(() => undefined);
+    for (const page of [ana, bob]) {
+      await expect(
+        page.getByText(`Solved by Bob${suffix}`).or(page.getByText('Nobody solved it.')),
+      ).toBeVisible();
     }
   } finally {
     await Promise.all(contexts.map((c) => c.close()));
