@@ -10,6 +10,13 @@
   --danger-bg: #fde8e8;
   --danger-text: #8a1c1c;
   --badge-bg: #eceff6;
+  --board: #fbfaf6;
+  --grid: #e6e3da;
+  --wall: #2b2d33;
+  --red: #d33a3a;
+  --blue: #2f6fd8;
+  --green: #2e9c5a;
+  --yellow: #e0b324;
   color-scheme: light;
 }
 
@@ -25,6 +32,13 @@
     --danger-bg: #3d1d1d;
     --danger-text: #ffb4b4;
     --badge-bg: #2a2f38;
+    --board: #23262c;
+    --grid: #30343c;
+    --wall: #d9dbe0;
+    --red: #ff6b6b;
+    --blue: #6f9dff;
+    --green: #4cc982;
+    --yellow: #ffd24d;
     color-scheme: dark;
   }
 }
