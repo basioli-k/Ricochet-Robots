@@ -374,10 +374,19 @@ impl From<&RoomView> for RoomSnapshot {
 #[ts(export)]
 pub enum ClientMessage {
     Start,
-    Bid { moves: u8 },
-    Move { robot: Robot, dir: Dir },
+    Bid {
+        moves: u8,
+    },
+    Move {
+        robot: Robot,
+        dir: Dir,
+    },
     Concede,
-    Chat { text: String },
+    Chat {
+        text: String,
+    },
+    /// Leaves through this socket; a player with other sockets open in
+    /// the room stays a member until the last one leaves or closes.
     Leave,
 }
 

@@ -413,6 +413,9 @@ fn chat_is_trimmed_and_bounded() {
         "evil\u{202e}txt",
         "zero\u{200b}width",
         "iso\u{2066}late",
+        "arabic\u{061c}mark",
+        "line\u{2028}sep",
+        "tag\u{e0041}char",
     ] {
         assert_eq!(room.chat(ANA, bad), Err(RoomError::BadChat), "{bad:?}");
     }

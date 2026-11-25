@@ -21,7 +21,8 @@ pub struct Config {
     pub room_create_window_secs: u64,
     /// Chat messages per player per second.
     pub chat_per_sec: usize,
-    /// Bids and moves per player per second.
+    /// Other game messages (bids, moves, start, concede, and malformed
+    /// ones) per player per second.
     pub actions_per_sec: usize,
     /// Open game sockets per player, and per client address.
     pub sockets_per_player: usize,

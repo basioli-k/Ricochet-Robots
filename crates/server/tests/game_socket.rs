@@ -409,11 +409,15 @@ async fn a_second_socket_keeps_the_player_in_the_room() {
 /// Like `recv_where`, without its 2 s deadline (the caller sets one).
 async fn recv_where_patiently(client: &mut Client, wanted: impl Fn(&Value) -> bool) -> Value {
     loop {
-        if let Some(Ok(Message::Text(text))) = client.next().await {
-            let message: Value = serde_json::from_str(&text).unwrap();
-            if wanted(&message) {
-                return message;
+        match client.next().await {
+            Some(Ok(Message::Text(text))) => {
+                let message: Value = serde_json::from_str(&text).unwrap();
+                if wanted(&message) {
+                    return message;
+                }
             }
+            Some(Ok(_)) => {}
+            other => panic!("the socket ended: {other:?}"),
         }
     }
 }

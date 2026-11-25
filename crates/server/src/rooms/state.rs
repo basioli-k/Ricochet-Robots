@@ -465,8 +465,8 @@ const fn stage(phase: Phase) -> Phase {
     }
 }
 
-/// Control characters, bidirectional overrides and isolates, and
-/// zero-width or invisible formatting characters.
+/// Control characters, bidirectional marks, overrides and isolates, line
+/// and paragraph separators, and zero-width, invisible or tag characters.
 fn is_hidden(c: char) -> bool {
     c.is_control()
         || matches!(
@@ -476,6 +476,12 @@ fn is_hidden(c: char) -> bool {
                 | '\u{2060}'..='\u{2064}'
                 | '\u{2066}'..='\u{2069}'
                 | '\u{feff}'
+                | '\u{00ad}'
+                | '\u{061c}'
+                | '\u{180e}'
+                | '\u{2028}'..='\u{2029}'
+                | '\u{fff9}'..='\u{fffb}'
+                | '\u{e0000}'..='\u{e007f}'
         )
 }
 
