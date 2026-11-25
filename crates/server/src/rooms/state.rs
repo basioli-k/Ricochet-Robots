@@ -2,6 +2,8 @@
 //! machine. The async actor around it only forwards commands and events, so
 //! everything here is tested without a runtime. Time arrives as `now`.
 
+use std::collections::HashMap;
+
 use storage::{FinishedGame, Participant, Seat};
 
 use domain::{
@@ -120,6 +122,8 @@ pub struct RoomState {
     members: Vec<Member>,
     /// Everyone who was a member while the game ran, for its result.
     players: Vec<Member>,
+    /// Open connections per member; always one entry per member.
+    connections: HashMap<PlayerId, usize>,
     setup: Option<(Board, Robots)>,
     game: Option<Game>,
     since: Option<Since>,
@@ -137,6 +141,7 @@ impl RoomState {
             board: board.clone(),
             members: Vec::new(),
             players: Vec::new(),
+            connections: HashMap::new(),
             setup: Some((board, robots)),
             game: None,
             since: None,
@@ -233,12 +238,16 @@ impl RoomState {
         }])
     }
 
-    /// Adds a member; names are unique in the room ignoring case.
+    /// Adds a member; names are unique in the room ignoring case. Each
+    /// join is one connection: joining again (a second tab, or reconnecting
+    /// before the old socket is noticed gone) adds a connection and no
+    /// event, and the member stays until every connection has left.
     ///
     /// # Errors
-    /// `Full` or `NameTaken`. Rejoining with the same id is a no-op.
+    /// `Full` or `NameTaken`.
     pub fn join(&mut self, member: Member) -> Events {
-        if self.members.iter().any(|m| m.id == member.id) {
+        if let Some(n) = self.connections.get_mut(&member.id) {
+            *n += 1;
             return Ok(Vec::new());
         }
         if self.members.len() >= self.capacity {
@@ -254,15 +263,23 @@ impl RoomState {
         if self.game.is_some() {
             self.add_player(&member);
         }
+        self.connections.insert(member.id, 1);
         self.members.push(member.clone());
         Ok(vec![RoomEvent::Joined(member)])
     }
 
-    /// Removes a member. A demonstrator who leaves concedes.
+    /// Ends one of a member's connections; with the last one the member
+    /// leaves, and a demonstrator who leaves concedes.
     ///
     /// # Errors
     /// `NotMember`.
     pub fn leave(&mut self, id: PlayerId, now: Timestamp) -> Events {
+        let connections = self.connections.get_mut(&id).ok_or(RoomError::NotMember)?;
+        *connections -= 1;
+        if *connections > 0 {
+            return Ok(Vec::new());
+        }
+        self.connections.remove(&id);
         let index = self
             .members
             .iter()

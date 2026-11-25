@@ -456,3 +456,26 @@ fn the_result_lists_everyone_who_played_with_their_tokens() {
         "a late joiner counts, and so does a scorer who left"
     );
 }
+
+#[test]
+fn a_member_with_two_connections_stays_until_both_leave() {
+    let mut room = started();
+    assert_eq!(room.join(member(ANA, "ana")).unwrap(), [], "a second tab");
+    assert_eq!(room.leave(ANA, t(1)).unwrap(), [], "one tab closed");
+    assert_eq!(room.members().len(), 2);
+    assert_eq!(room.leave(ANA, t(2)).unwrap(), [RoomEvent::Left(ANA)]);
+    assert_eq!(room.leave(ANA, t(3)), Err(RoomError::NotMember));
+}
+
+#[test]
+fn a_demonstrator_who_reconnects_keeps_their_turn() {
+    let mut room = started();
+    room.bid(ANA, 2, t(0)).unwrap();
+    room.tick(t(BIDDING_WINDOW_MS));
+    room.join(member(ANA, "ana")).unwrap();
+    room.leave(ANA, t(BIDDING_WINDOW_MS + 1)).unwrap();
+    assert!(matches!(
+        phase(&room),
+        Phase::Demonstrating { player: ANA, .. }
+    ));
+}

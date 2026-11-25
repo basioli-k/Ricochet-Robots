@@ -3,8 +3,8 @@
 //! is forwarded and every client message becomes a room command for that
 //! player. Closing it, going quiet past the heartbeat timeout, not reading
 //! fast enough (a send waits at most that long) or falling behind the
-//! room's events leaves the room. A player with two sockets in one room
-//! leaves when either closes.
+//! room's events leaves the room. A player with several sockets in a room
+//! stays a member until the last one closes.
 
 use std::time::Duration;
 

@@ -360,3 +360,20 @@ async fn a_client_that_stops_reading_is_dropped() {
         }
     }
 }
+
+#[tokio::test]
+async fn a_second_socket_keeps_the_player_in_the_room() {
+    let t = table(Limits::default()).await;
+    let (mut ana, _) = t.join(&t.ana).await;
+    let (first, _) = t.join(&t.bob).await;
+    recv_type(&mut ana, "joined").await;
+    let (mut second, snapshot) = t.join(&t.bob).await;
+    assert_eq!(snapshot["room"]["members"].as_array().unwrap().len(), 2);
+    drop(first);
+    // Give the server time to notice the close.
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    // Bob is still there: his chat arrives, and no "left" came before it.
+    send(&mut second, json!({ "type": "chat", "text": "still here" })).await;
+    let next = recv_where(&mut ana, |m| m["type"] == "chat" || m["type"] == "left").await;
+    assert_eq!(next["type"], "chat");
+}
