@@ -9,16 +9,22 @@ pub trait Clock: Send + Sync {
     fn now(&self) -> Timestamp;
 }
 
-/// The system clock.
+/// The system clock, made monotonic: if the system time is set back, it
+/// keeps returning the last value until real time catches up, so bids can
+/// never be ordered against the time they were placed.
 #[derive(Debug, Default)]
-pub struct SystemClock;
+pub struct SystemClock {
+    last: AtomicU64,
+}
 
 impl Clock for SystemClock {
     fn now(&self) -> Timestamp {
         let elapsed = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default();
-        Timestamp(u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX))
+        let wall = u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX);
+        let previous = self.last.fetch_max(wall, Ordering::SeqCst);
+        Timestamp(previous.max(wall))
     }
 }
 
@@ -40,5 +46,27 @@ impl FakeClock {
 impl Clock for FakeClock {
     fn now(&self) -> Timestamp {
         Timestamp(self.0.load(Ordering::SeqCst))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_system_clock_never_goes_back() {
+        let clock = SystemClock::default();
+        // Simulate an earlier reading far in the future, as after the
+        // system time was set back.
+        clock.last.store(u64::MAX - 1, Ordering::SeqCst);
+        assert_eq!(clock.now(), Timestamp(u64::MAX - 1));
+    }
+
+    #[test]
+    fn the_system_clock_tracks_real_time() {
+        let clock = SystemClock::default();
+        let first = clock.now();
+        assert!(first.0 > 1_700_000_000_000, "milliseconds since the epoch");
+        assert!(clock.now() >= first);
     }
 }
