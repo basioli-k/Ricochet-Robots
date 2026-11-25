@@ -230,11 +230,13 @@ ricochet-robots/
   (fixes B2). Events go out over a broadcast channel.
 - WebSocket protocol, server-authoritative. The player is taken from the
   session, never from the payload (fixes S3, S4, S6):
-  - client -> server: `Join`, `Start`, `Bid { moves }`, `Move { robot, dir }`,
-    `Chat { text }`, `Leave`
-  - server -> client: `Snapshot`, `BidPlaced`, `BiddingClosesAt { deadline }`,
-    `DemonstrationStarted { player, moves }`, `RobotMoved`, `RoundResolved`,
-    `Chat`, `GameOver { scores }`
+  - client -> server: `Start`, `Bid { moves }`, `Move { robot, dir }`,
+    `Concede`, `Chat { text }`, `Leave`; opening a room's socket joins it
+  - server -> client: `Snapshot` (on connecting), `Joined`, `Left`,
+    `RoundStarted`, `BidPlaced { closes_at }`, `DemonstrationStarted { until }`,
+    `RobotMoved`, `RoundResolved`, `Chat`, `GameOver { leaders, scores }`,
+    `Error { code }`
+  - Player IDs travel as 32 hex digits; times as milliseconds since the epoch.
 - Timers run on the server; clients only display the deadline.
 - Disconnects detected by WebSocket close and heartbeat. Results persisted
   exactly once, when the room's game ends.

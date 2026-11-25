@@ -1,5 +1,5 @@
 //! The WebSocket protocol as JSON: what clients send and what the server
-//! answers (the messages follow; these are the values they carry). The types are exported to TypeScript (`web/src/protocol`) with
+//! answers. The types are exported to TypeScript (`web/src/protocol`) with
 //! ts-rs when the tests run, and CI fails if the checked-in copies differ,
 //! so the client can't drift from the server.
 
@@ -10,7 +10,7 @@ use domain::{
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::rooms::state::{GameView, Member, RoomView};
+use crate::rooms::state::{GameView, Member, RoomError, RoomEvent, RoomView};
 
 /// A player's ID on the wire: 32 hex digits (too big for a JS number).
 #[must_use]
@@ -363,5 +363,151 @@ impl From<&RoomView> for RoomSnapshot {
             board: (&v.board).into(),
             game: v.game.as_ref().map(GameSnapshot::from),
         }
+    }
+}
+
+/// What a client may send. The player is always the session's, never
+/// part of the message.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[ts(export)]
+pub enum ClientMessage {
+    Start,
+    Bid { moves: u8 },
+    Move { robot: Robot, dir: Dir },
+    Concede,
+    Chat { text: String },
+    Leave,
+}
+
+/// What the server sends: a snapshot on connecting, then each change.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[ts(export)]
+pub enum ServerMessage {
+    Snapshot {
+        /// The receiving player's ID.
+        you: String,
+        room: RoomSnapshot,
+    },
+    Joined {
+        player: PlayerView,
+    },
+    Left {
+        player: String,
+    },
+    RoundStarted {
+        target: TargetView,
+        robots: RobotsView,
+    },
+    BidPlaced {
+        player: String,
+        moves: u8,
+        #[ts(type = "number")]
+        closes_at: u64,
+    },
+    DemonstrationStarted {
+        player: String,
+        bid: u8,
+        #[ts(type = "number")]
+        until: u64,
+    },
+    RobotMoved {
+        robot: Robot,
+        robots: RobotsView,
+    },
+    RoundResolved {
+        phase: PhaseView,
+    },
+    GameOver {
+        leaders: Vec<String>,
+        scores: Vec<Score>,
+    },
+    Chat {
+        player: String,
+        text: String,
+    },
+    /// A refused message, by stable code for the client to translate.
+    Error {
+        code: String,
+    },
+}
+
+impl ServerMessage {
+    #[must_use]
+    pub fn error(code: &str) -> Self {
+        Self::Error { code: code.into() }
+    }
+}
+
+impl From<RoomEvent> for ServerMessage {
+    fn from(e: RoomEvent) -> Self {
+        match e {
+            RoomEvent::Joined(m) => Self::Joined {
+                player: (&m).into(),
+            },
+            RoomEvent::Left(p) => Self::Left {
+                player: player_id(p),
+            },
+            RoomEvent::RoundStarted { target, robots } => Self::RoundStarted {
+                target: target.into(),
+                robots: (&robots).into(),
+            },
+            RoomEvent::BidPlaced {
+                player,
+                moves,
+                closes_at,
+            } => Self::BidPlaced {
+                player: player_id(player),
+                moves,
+                closes_at: ms(closes_at),
+            },
+            RoomEvent::Demonstrating { player, bid, until } => Self::DemonstrationStarted {
+                player: player_id(player),
+                bid,
+                until: ms(until),
+            },
+            RoomEvent::RobotMoved { robot, robots } => Self::RobotMoved {
+                robot: robot.into(),
+                robots: (&robots).into(),
+            },
+            RoomEvent::RoundEnded { phase } => Self::RoundResolved {
+                phase: phase.into(),
+            },
+            RoomEvent::GameOver { leaders, scores: s } => Self::GameOver {
+                leaders: leaders.into_iter().map(player_id).collect(),
+                scores: scores(&s),
+            },
+            RoomEvent::Chat { player, text } => Self::Chat {
+                player: player_id(player),
+                text,
+            },
+        }
+    }
+}
+
+/// The stable code for a refused room command.
+#[must_use]
+pub const fn room_error_code(e: RoomError) -> &'static str {
+    use domain::{BidError, GameError, RoundError};
+    match e {
+        RoomError::Full => "room_full",
+        RoomError::NameTaken => "name_taken",
+        RoomError::NotMember => "not_member",
+        RoomError::AlreadyStarted => "already_started",
+        RoomError::NotStarted => "not_started",
+        RoomError::BadChat => "bad_chat",
+        RoomError::Game(GameError::GameOver) => "game_over",
+        RoomError::Game(GameError::RoundInProgress) => "round_in_progress",
+        RoomError::Game(GameError::Round(r)) => match r {
+            RoundError::WrongPhase => "wrong_phase",
+            RoundError::BiddingClosed => "bidding_closed",
+            RoundError::BiddingStillOpen => "bidding_open",
+            RoundError::NoBids => "no_bids",
+            RoundError::NotYourTurn => "not_your_turn",
+            RoundError::RobotDidNotMove => "robot_did_not_move",
+            RoundError::Bid(BidError::ZeroMoves) => "bid_zero",
+            RoundError::Bid(BidError::NotLower { .. }) => "bid_not_lower",
+        },
     }
 }
