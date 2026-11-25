@@ -60,6 +60,19 @@ describe('error messages', () => {
       'network',
       'room_not_found',
       'too_many_connections',
+      'room_full',
+      'name_taken',
+      'already_started',
+      'not_started',
+      'wrong_phase',
+      'bidding_closed',
+      'bid_zero',
+      'bid_not_lower',
+      'not_your_turn',
+      'robot_did_not_move',
+      'bad_chat',
+      'lagged',
+      'room_closed',
     ]) {
       expect(errorKey(code)).not.toBe('errorUnknown');
       expect(en[errorKey(code)]).toBeTruthy();

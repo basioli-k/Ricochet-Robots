@@ -16,6 +16,19 @@ const byCode: Readonly<Record<string, MessageKey>> = {
   network: 'errorNetwork',
   room_not_found: 'errorRoomNotFound',
   too_many_connections: 'errorTooManyConnections',
+  room_full: 'errorRoomFull',
+  name_taken: 'errorNameTaken',
+  already_started: 'errorAlreadyStarted',
+  not_started: 'errorNotStarted',
+  wrong_phase: 'errorWrongPhase',
+  bidding_closed: 'errorBiddingClosed',
+  bid_zero: 'errorBidZero',
+  bid_not_lower: 'errorBidNotLower',
+  not_your_turn: 'errorNotYourTurn',
+  robot_did_not_move: 'errorRobotDidNotMove',
+  bad_chat: 'errorBadChat',
+  lagged: 'errorLagged',
+  room_closed: 'errorRoomClosed',
 };
 
 export function errorKey(code: string): MessageKey {
