@@ -154,6 +154,8 @@ ricochet-robots/
   winner then).
 - Fresh database: no data is imported from the legacy MySQL.
 - SQLite (one file, easy to deploy); the trait keeps other databases open.
+  Sessions share the file in a `tower_sessions` table, which the session
+  store creates itself (outside `migrations/`).
   Uniqueness ignoring case is enforced by the database through lowercased
   key columns; migrations live in `migrations/` and run on connect.
 
@@ -163,15 +165,20 @@ ricochet-robots/
   without leaking internals.
 - Dependencies injected through an `AppState` built in `main`:
   `Arc<dyn PlayerRepository>`, `Arc<dyn GameResultRepository>`,
-  `Arc<dyn IdentityProvider>`, `Arc<dyn Clock>`, `Arc<dyn Rng>`,
+  `Arc<dyn IdentityProvider>` (after launch), `Arc<dyn Clock>`, `Arc<dyn Rng>`,
   `Arc<dyn RateLimiter>` (driven by the `Clock`). Tests build it with
   in-memory and fake implementations.
 - Text: errors and events carry stable codes (e.g. `username_taken`), never
   prose; the client translates them, so the server renders no user-facing
   text at all. An account's `locale` stores its language preference across
   devices; a guest's lives in the client.
-- Sign-in (replaces the PHP register/login controllers): Google only, or
-  play as a guest. No passwords, no email, nothing to confirm.
+- Sessions (at launch): `tower-sessions` cookie (HttpOnly, Secure over
+  HTTPS, SameSite=Lax), CSRF token on every state-changing request
+  (`POST /guest` now; choosing a username and logout later), session ID
+  cycled on guest start and later on sign-in (prevents session fixation),
+  expired sessions purged by the store's expiry task.
+- Google sign-in (after launch; with guests, it replaces the PHP
+  register/login controllers): no passwords, no email, nothing to confirm.
   - OpenID Connect authorization-code flow with PKCE, `state` and `nonce`,
     behind an `IdentityProvider` trait (Google in production, a fake in
     tests). Only the `openid` scope is requested, so Google sends no email
@@ -190,10 +197,6 @@ ricochet-robots/
     If two tabs finish a first sign-in at once, the second insert fails with
     `GoogleAccountTaken`; the server then looks the account up by `sub` and
     signs that tab in instead of showing an error.
-  - `tower-sessions` cookie (HttpOnly, Secure, SameSite=Lax), CSRF token on
-    every state-changing request (`POST /guest`, choosing a username,
-    logout), session ID cycled on sign-in and guest start (prevents session
-    fixation), expired sessions purged by the store's expiry task.
   - Configuration from the environment: `GOOGLE_CLIENT_ID`,
     `GOOGLE_CLIENT_SECRET` (a secret: never committed) and the public base
     URL for the redirect.
@@ -250,8 +253,8 @@ ricochet-robots/
 - All user-facing strings in one translation module, English and Croatian.
   Language comes from the saved preference, falling back to the browser
   language. Chat is rendered as text, never HTML.
-- Pages: sign-in ("Sign in with Google" or "Play as guest"), choose a
-  username (first Google sign-in only), lobby (room list), game,
+- Pages at launch: guest entry (pick a nickname), lobby (room list), game.
+  After launch: "Sign in with Google", username choice on first sign-in,
   leaderboard.
 
 ## 4. Delivery plan
@@ -271,10 +274,10 @@ commits of at most ~200 lines of logic, each shipping its tests.
 | 6b | `feat/server-guests` | Guest sessions and `RateLimiter`; tests: `RateLimiter` with a fake clock, the guest-start limit, name rule (length, non-ASCII rejected), clash with a username in any case, 24-hour expiry with a fake clock, CSRF on `POST /guest`. |
 | 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game` (each game gets a `Shuffle` backed by the injected `Rng`), room caps and idle closing; tests drive commands through a full round without a network, and cover a duplicate nickname in a room, the room-creation limit, the per-session/IP and global room caps, and idle closing with a fake clock. |
 | 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients, one of them a guest who finishes a round and is flagged `is_guest`, plus the chat and bid/move rate limits. |
-| 8 | `feat/web-auth-lobby` | Sign-in (Google or guest), username choice, lobby, leaderboard pages; extend the i18n module (saved language preference). |
-| 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with a signed-in player (fake identity provider) and a guest playing a round. |
+| 8 | `feat/web-auth-lobby` | Guest entry (nickname) and lobby pages; extend the i18n module (language preference saved in the browser). |
+| 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with two guests playing a round. |
 | 10 | `chore/remove-legacy` | Delete `legacy/`, first moving `legacy/tools/board_oracle.py` to `tools/` with a copy of the board literal it reads, so the fixed-board test values stay regenerable; Dockerfile and README with run and test commands. |
-| after launch | `feat/server-auth` | `AppState`, Google sign-in through `IdentityProvider` (OIDC code flow with PKCE, ID-token verification), username choice on first sign-in, logout, session (ID cycling, expiry purge), CSRF, account locale; HTTP integration tests with a fake provider, including rejected ID tokens (bad signature, wrong audience or issuer, expired, wrong nonce), case-insensitive username uniqueness and a new session ID after sign-in. Document `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, the public base URL and the database URL in `.env.example`. |
+| after launch | `feat/server-auth` | `IdentityProvider` and Google sign-in (OIDC code flow with PKCE, ID-token verification), username choice on first sign-in, logout, account locale, leaderboard page and API; HTTP integration tests with a fake provider, including rejected ID tokens (bad signature, wrong audience or issuer, expired, wrong nonce), case-insensitive username uniqueness and a new session ID after sign-in. Document `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env.example`. |
 | later | `feat/domain-quadrants` | Quadrant set and rotation, random boards, each checked by `BoardValidator`. |
 | later | `chore/hosting` | Pick a host (investigation pending) and add deployment. |
 
@@ -292,7 +295,7 @@ app keeps working until phase 10.
 | Accounts | Google sign-in only (no passwords, email or confirmation); anyone can play as a guest |
 | Guest play | Allowed without registration; games with a guest are unranked |
 | Leaked data | Purged from git history; secret scanning added |
-| Launch | Guest-only first: Google sign-in, ranked stats and the leaderboard follow after launch (the server already runs guests-only when the Google settings are unset) |
+| Launch | Guest-only first: Google sign-in, ranked stats and the leaderboard follow after launch |
 | Hosting | Undecided; investigate later. The Dockerfile in phase 10 stays host-agnostic. |
 | Dependencies | Only releases at least 14 days old, enforced in CI; security fixes excepted with the advisory ID |
 | Existing accounts and stats | Start fresh; nothing is imported from the legacy MySQL |
