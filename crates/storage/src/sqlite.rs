@@ -122,8 +122,8 @@ impl SqliteStore {
         Self::open(pool, options).await
     }
 
-    /// The underlying pool, for components that share the database (e.g.
-    /// the session store).
+    /// The underlying pool, only for stores that share the database file
+    /// (the session store). Queries belong behind this crate's traits.
     #[must_use]
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
