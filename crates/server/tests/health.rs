@@ -5,17 +5,32 @@ use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use server::clock::FakeClock;
 use server::rate_limit::SlidingWindow;
+use server::rooms::actor::RandomShuffler;
+use server::rooms::manager::{RoomLimits, RoomManager};
 use server::{AppState, app, sessions};
 use storage::InMemoryStore;
 use tower::ServiceExt;
 
 fn state() -> AppState {
     let store = Arc::new(InMemoryStore::new());
+    let clock = Arc::new(FakeClock::at(0));
     AppState {
         players: store.clone(),
         games: store,
-        clock: Arc::new(FakeClock::at(0)),
+        clock: clock.clone(),
         guest_limiter: Arc::new(SlidingWindow::new(5, 1_000)),
+        rooms: Arc::new(RoomManager::new(
+            RoomLimits::default(),
+            || {
+                (
+                    domain::fixed_board::board(),
+                    domain::fixed_board::starting_robots(),
+                )
+            },
+            clock,
+            Arc::new(RandomShuffler),
+            Arc::new(SlidingWindow::new(5, 1_000)),
+        )),
     }
 }
 

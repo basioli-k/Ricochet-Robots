@@ -1,105 +1,29 @@
 //! Starting a guest session through the HTTP API.
 
+mod support;
+
 use std::net::SocketAddr;
-use std::sync::Arc;
 
-use axum::Router;
 use axum::body::Body;
-use axum::extract::connect_info::MockConnectInfo;
 use axum::http::{Request, StatusCode, header};
-use domain::{PlayerId, Timestamp};
-use http_body_util::BodyExt;
 use serde_json::{Value, json};
-use server::clock::FakeClock;
-use server::identity::CSRF_HEADER;
-use server::rate_limit::SlidingWindow;
-use server::{AppState, app, sessions};
-use storage::{Account, InMemoryStore, Locale, PlayerRepository};
+use support::{CLIENT, Limits, apps_at, cookie, json_body, session, start};
 use tower::ServiceExt;
-use tower_sessions::MemoryStore;
 
-const CLIENT: [u8; 4] = [203, 0, 113, 7];
-
-/// One app per client address, sharing state and sessions, with an
-/// account named "ana" and a guest-start limit of `limit` per minute.
-async fn apps_at(limit: usize, clients: &[SocketAddr]) -> (Vec<Router>, Arc<FakeClock>) {
-    let store = Arc::new(InMemoryStore::new());
-    let ana = Account {
-        id: PlayerId::new(1),
-        google_subject: "google-1".into(),
-        username: "ana".into(),
-        locale: Locale::En,
-        created_at: Timestamp(0),
-    };
-    store.create(&ana).await.unwrap();
-    let clock = Arc::new(FakeClock::at(1_000));
-    let state = AppState {
-        players: store.clone(),
-        games: store,
-        clock: clock.clone(),
-        guest_limiter: Arc::new(SlidingWindow::new(limit, 60_000)),
-    };
-    let sessions = MemoryStore::default();
-    let apps = clients
-        .iter()
-        .map(|&client| {
-            app(state.clone(), sessions::layer(sessions.clone(), false))
-                .layer(MockConnectInfo(client))
-        })
-        .collect();
-    (apps, clock)
+/// An app allowing `guest_starts` guest starts per client per minute.
+async fn app_with(guest_starts: usize) -> axum::Router {
+    support::app_with(Limits {
+        guest_starts,
+        ..Limits::default()
+    })
+    .await
 }
 
-/// An app whose clients all connect from one IPv4 address.
-async fn app_with(limit: usize) -> Router {
-    let (mut apps, _) = apps_at(limit, &[SocketAddr::from((CLIENT, 4000))]).await;
-    apps.remove(0)
-}
-
-/// The cookie pair from a response's Set-Cookie, if any.
-fn cookie(response: &axum::response::Response) -> Option<String> {
-    let value = response.headers().get(header::SET_COOKIE)?.to_str().ok()?;
-    Some(value.split(';').next()?.to_owned())
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap()
-}
-
-/// GET /api/session: returns (cookie, csrf, identity).
-async fn session(app: &Router, cookie_pair: Option<&str>) -> (Option<String>, String, Value) {
-    let mut request = Request::get("/api/session");
-    if let Some(pair) = cookie_pair {
-        request = request.header(header::COOKIE, pair);
+fn limit(guest_starts: usize) -> Limits {
+    Limits {
+        guest_starts,
+        ..Limits::default()
     }
-    let response = app
-        .clone()
-        .oneshot(request.body(Body::empty()).unwrap())
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    let set = cookie(&response);
-    let body = json_body(response).await;
-    (
-        set,
-        body["csrf"].as_str().unwrap().to_owned(),
-        body["identity"].clone(),
-    )
-}
-
-async fn start(
-    app: &Router,
-    cookie_pair: &str,
-    csrf: &str,
-    nickname: &str,
-) -> axum::response::Response {
-    let request = Request::post("/api/guest")
-        .header(header::COOKIE, cookie_pair)
-        .header(CSRF_HEADER, csrf)
-        .header(header::CONTENT_TYPE, "application/json")
-        .body(Body::from(json!({ "nickname": nickname }).to_string()))
-        .unwrap();
-    app.clone().oneshot(request).await.unwrap()
 }
 
 #[tokio::test]
@@ -160,7 +84,7 @@ async fn nicknames_follow_the_rule_and_cannot_copy_an_account() {
 
 #[tokio::test]
 async fn guest_starts_are_rate_limited_per_address() {
-    let (apps, clock) = apps_at(2, &[SocketAddr::from((CLIENT, 4000))]).await;
+    let (apps, clock) = apps_at(limit(2), &[SocketAddr::from((CLIENT, 4000))]).await;
     let app = &apps[0];
     let (pair, csrf, _) = session(app, None).await;
     let pair = pair.unwrap();
@@ -195,7 +119,7 @@ async fn guest_starts_are_rate_limited_per_address() {
 async fn ipv6_clients_share_the_limit_of_their_64_prefix() {
     let at = |ip: &str| SocketAddr::new(ip.parse().unwrap(), 4000);
     let (apps, _) = apps_at(
-        1,
+        limit(1),
         &[
             at("2001:db8:1:2::1"),
             at("2001:db8:1:2::2"),

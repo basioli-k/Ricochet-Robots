@@ -50,7 +50,7 @@ pub struct Creator<'a> {
 }
 
 /// Lobby view of a room.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct RoomSummary {
     pub id: String,
     pub members: usize,

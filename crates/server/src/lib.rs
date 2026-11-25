@@ -4,6 +4,7 @@ pub mod clock;
 pub mod config;
 pub mod guests;
 pub mod identity;
+pub mod lobby;
 pub mod names;
 pub mod rate_limit;
 pub mod rooms;
@@ -20,6 +21,7 @@ use tower_sessions::{SessionManagerLayer, SessionStore};
 
 use crate::clock::Clock;
 use crate::rate_limit::RateLimiter;
+use crate::rooms::manager::RoomManager;
 
 /// Everything handlers depend on, injected so tests can swap in fakes.
 #[derive(Clone)]
@@ -29,6 +31,7 @@ pub struct AppState {
     pub clock: Arc<dyn Clock>,
     /// Limits guest starts per client IP.
     pub guest_limiter: Arc<dyn RateLimiter>,
+    pub rooms: Arc<RoomManager>,
 }
 
 impl std::fmt::Debug for AppState {
@@ -44,6 +47,7 @@ pub fn app<S: SessionStore + Clone>(state: AppState, sessions: SessionManagerLay
         .route("/health", get(health))
         .route("/api/session", get(identity::get_session))
         .route("/api/guest", post(guests::start))
+        .route("/api/rooms", get(lobby::list).post(lobby::create))
         .with_state(state)
         .layer(sessions)
 }

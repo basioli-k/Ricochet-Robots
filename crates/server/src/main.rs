@@ -2,9 +2,12 @@
 
 use std::sync::Arc;
 
-use server::clock::SystemClock;
+use domain::fixed_board;
+use server::clock::{Clock, SystemClock};
 use server::config::Config;
 use server::rate_limit::SlidingWindow;
+use server::rooms::actor::RandomShuffler;
+use server::rooms::manager::RoomManager;
 use server::sessions;
 use server::{AppState, app};
 use storage::SqliteStore;
@@ -36,14 +39,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
     let https = config.secure_cookies();
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
+    let rooms = Arc::new(RoomManager::new(
+        config.rooms,
+        || (fixed_board::board(), fixed_board::starting_robots()),
+        clock.clone(),
+        Arc::new(RandomShuffler),
+        Arc::new(SlidingWindow::new(
+            config.room_creates,
+            config.room_create_window_secs.saturating_mul(1000),
+        )),
+    ));
+    let idle_rooms = rooms.clone();
+    tokio::spawn(async move {
+        let mut every = tokio::time::interval(tokio::time::Duration::from_mins(1));
+        loop {
+            every.tick().await;
+            let closed = idle_rooms.close_idle().await;
+            if closed > 0 {
+                tracing::info!(closed, "closed idle rooms");
+            }
+        }
+    });
     let state = AppState {
         players: store.clone(),
         games: store,
-        clock: Arc::new(SystemClock::default()),
+        clock,
         guest_limiter: Arc::new(SlidingWindow::new(
             config.guest_starts,
             config.guest_window_secs.saturating_mul(1000),
         )),
+        rooms,
     };
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
     tracing::info!(address = %config.bind, "listening");

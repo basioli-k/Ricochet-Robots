@@ -23,6 +23,16 @@ pub enum Identity {
     },
 }
 
+impl Identity {
+    /// The player's ID, as used for room membership and owner caps.
+    #[must_use]
+    pub fn id(&self) -> &str {
+        match self {
+            Self::Guest { id, .. } => id,
+        }
+    }
+}
+
 /// A failure the client shows by its stable `code` (translated client-side).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ApiError {
@@ -34,6 +44,10 @@ impl ApiError {
     pub const CSRF: Self = Self {
         status: StatusCode::FORBIDDEN,
         code: "csrf_mismatch",
+    };
+    pub const NOT_SIGNED_IN: Self = Self {
+        status: StatusCode::UNAUTHORIZED,
+        code: "not_signed_in",
     };
     pub const INTERNAL: Self = Self {
         status: StatusCode::INTERNAL_SERVER_ERROR,
