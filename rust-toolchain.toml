@@ -1,3 +1,5 @@
+# Exact version (released 2026-07-14), so CI and local builds use the same
+# toolchain and never one younger than 14 days.
 [toolchain]
 channel = "1.97.1"
 components = ["clippy", "rustfmt"]

@@ -154,10 +154,10 @@ ricochet-robots/
   winner then).
 - Fresh database: no data is imported from the legacy MySQL.
 - SQLite (one file, easy to deploy); the trait keeps other databases open.
-  Sessions share the file in a `tower_sessions` table, which the session
-  store creates itself (outside `migrations/`).
   Uniqueness ignoring case is enforced by the database through lowercased
   key columns; migrations live in `migrations/` and run on connect.
+  Sessions share the file in a `tower_sessions` table, which the session
+  store creates itself (outside `migrations/`).
 
 ### `server` crate
 
@@ -174,7 +174,7 @@ ricochet-robots/
   devices; a guest's lives in the client.
 - Sessions (at launch): `tower-sessions` cookie (HttpOnly, Secure over
   HTTPS, SameSite=Lax), CSRF token on every state-changing request
-  (`POST /guest` now; choosing a username and logout later), session ID
+  (`POST /guest` in 6b; choosing a username and logout after launch), session ID
   cycled on guest start and later on sign-in (prevents session fixation),
   expired sessions purged by the store's expiry task.
 - Google sign-in (after launch; with guests, it replaces the PHP
@@ -292,12 +292,12 @@ app keeps working until phase 10.
 | Client | Svelte 5 + TypeScript (strict) |
 | UI language | English and Croatian |
 | Board | The single fixed board for now; random quadrant boards only after `BoardValidator` exists |
-| Accounts | Google sign-in only (no passwords, email or confirmation); anyone can play as a guest |
+| Accounts | Google sign-in only, after launch (no passwords, email or confirmation); anyone can play as a guest |
 | Guest play | Allowed without registration; games with a guest are unranked |
 | Leaked data | Purged from git history; secret scanning added |
 | Launch | Guest-only first: Google sign-in, ranked stats and the leaderboard follow after launch |
 | Hosting | Undecided; investigate later. The Dockerfile in phase 10 stays host-agnostic. |
-| Dependencies | Only releases at least 14 days old, enforced in CI; security fixes excepted with the advisory ID |
+| Dependencies | Only releases at least 14 days old, enforced in CI; exceptions for security fixes (citing the advisory) or owner-approved cases (citing the approval) |
 | Existing accounts and stats | Start fresh; nothing is imported from the legacy MySQL |
 
 ## 6. Secrets policy

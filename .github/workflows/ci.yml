@@ -37,7 +37,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          # Exact version: a security release, which outranks the 14-day rule.
+          # Exact version (released 2026-11-11), pinned so CI doesn't take
+          # releases younger than 14 days.
           node-version: 22.23.5
           cache: npm
           cache-dependency-path: web/package-lock.json

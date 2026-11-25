@@ -37,6 +37,7 @@ Run before every commit (CI runs the same):
   produced by deliberate mutation checks.
 - Web, from `web/`: `npm run lint`, `npm run typecheck`, `npm test`,
   `npm run build`
+- Tools: `python3 -I -m unittest discover -s tools -p 'test_*.py'`
 
 ## Dependencies
 

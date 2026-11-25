@@ -54,8 +54,9 @@ Only releases at least 14 days old are allowed (see `CLAUDE.md`). Check with
   locked below a minimum). It still locks the newest compatible release, so
   follow with `cargo update -p name --precise 1.2.3`; do the same for any
   transitive crate the check flags.
-- Security fixes newer than that go in `.dependency-age-allow` with the
-  advisory ID; the check notes entries that are no longer needed.
+- Exceptions go in `.dependency-age-allow` with a reason: a security fix
+  (cite the advisory) or an owner-approved case (cite the approval); the
+  check notes entries that are no longer needed.
 - GitHub Actions are pinned to the commit SHA of a release at least 14 days
   old, with the version in a comment.
 
