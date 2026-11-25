@@ -61,8 +61,15 @@ async fn shutdown_signal() {
             }
         }
     };
+    let interrupt = async {
+        if let Err(e) = tokio::signal::ctrl_c().await {
+            // Without a handler, wait for SIGTERM rather than stopping now.
+            tracing::warn!(error = %e, "can't listen for Ctrl-C");
+            std::future::pending::<()>().await;
+        }
+    };
     tokio::select! {
-        _ = tokio::signal::ctrl_c() => {}
+        () = interrupt => {}
         () = terminate => {}
     }
     tracing::info!("shutting down");

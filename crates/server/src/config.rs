@@ -42,7 +42,10 @@ impl Config {
     /// Whether cookies must be Secure: the public URL is HTTPS.
     #[must_use]
     pub fn secure_cookies(&self) -> bool {
-        self.public_base_url.starts_with("https://")
+        // Case-insensitive too, in case a Config was built without from_vars.
+        self.public_base_url
+            .get(..8)
+            .is_some_and(|scheme| scheme.eq_ignore_ascii_case("https://"))
     }
 }
 
@@ -101,6 +104,11 @@ mod tests {
         assert!(url("HTTPS://ricochet.example").unwrap().secure_cookies());
         assert!(!url("http://localhost:8080").unwrap().secure_cookies());
         assert!(!config(&[]).unwrap().secure_cookies());
+        let unvalidated = Config {
+            public_base_url: "HTTPS://x".into(),
+            ..config(&[]).unwrap()
+        };
+        assert!(unvalidated.secure_cookies(), "even without from_vars");
     }
 
     #[test]

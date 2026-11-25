@@ -3,7 +3,6 @@
 use tower_sessions::cookie::SameSite;
 use tower_sessions::{Expiry, SessionManagerLayer, SessionStore};
 
-/// Name of the session cookie.
 /// Name of the session cookie over plain HTTP (local development).
 pub const COOKIE: &str = "rr_session";
 /// Over HTTPS the `__Host-` prefix makes browsers refuse the cookie unless
