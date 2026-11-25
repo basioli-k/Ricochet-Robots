@@ -38,10 +38,11 @@ pub struct Started {
     pub csrf: String,
 }
 
-/// `POST /api/guest`. Checks run cheapest-first: CSRF, the name rule (so
-/// typos don't use up the allowance), the per-IP `guest_limiter` (set by
-/// `RR_GUEST_STARTS` and `RR_GUEST_WINDOW_SECS`), then whether an account already has the name (ignoring
-/// case), so a guest can't pose as that account.
+/// `POST /api/guest`. Checks run cheapest-first: CSRF; the name rule (so
+/// typos don't use up the allowance); the per-client `guest_limiter`, keyed
+/// by IPv4 address or IPv6 /64 and set by `RR_GUEST_STARTS` and
+/// `RR_GUEST_WINDOW_SECS`; then whether an account already has the name
+/// (ignoring case), so a guest can't pose as that account.
 ///
 /// # Errors
 /// `csrf_mismatch`, `rate_limited`, `nickname_invalid` or `nickname_taken`.
