@@ -132,9 +132,17 @@ async fn a_guest_starts_on_a_fresh_session() {
 async fn a_missing_or_wrong_csrf_token_is_refused() {
     let app = app_with(5).await;
     let (pair, _, _) = session(&app, None).await;
-    let response = start(&app, &pair.unwrap(), "wrong", "Visitor1").await;
+    let pair = pair.unwrap();
+    let response = start(&app, &pair, "wrong", "Visitor1").await;
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
     assert_eq!(json_body(response).await["error"], "csrf_mismatch");
+    let no_header = Request::post("/api/guest")
+        .header(header::COOKIE, &pair)
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(json!({ "nickname": "Visitor1" }).to_string()))
+        .unwrap();
+    let response = app.clone().oneshot(no_header).await.unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
@@ -152,25 +160,35 @@ async fn nicknames_follow_the_rule_and_cannot_copy_an_account() {
 
 #[tokio::test]
 async fn guest_starts_are_rate_limited_per_address() {
-    let app = app_with(2).await;
-    let (pair, csrf, _) = session(&app, None).await;
+    let (apps, clock) = apps_at(2, &[SocketAddr::from((CLIENT, 4000))]).await;
+    let app = &apps[0];
+    let (pair, csrf, _) = session(app, None).await;
     let pair = pair.unwrap();
-    // A refused CSRF check doesn't use up the allowance.
+    // Neither a refused CSRF check nor a malformed name uses the allowance.
     assert_eq!(
-        start(&app, &pair, "wrong", "Visitor1").await.status(),
+        start(app, &pair, "wrong", "Visitor1").await.status(),
         StatusCode::FORBIDDEN
     );
     assert_eq!(
-        start(&app, &pair, &csrf, "a b").await.status(),
+        start(app, &pair, &csrf, "a b").await.status(),
         StatusCode::BAD_REQUEST
     );
-    assert_eq!(
-        start(&app, &pair, &csrf, "c d").await.status(),
-        StatusCode::BAD_REQUEST
-    );
-    let response = start(&app, &pair, &csrf, "Visitor1").await;
+    // Well-formed attempts count, even when the name turns out taken.
+    for _ in 0..2 {
+        assert_eq!(
+            start(app, &pair, &csrf, "ANA").await.status(),
+            StatusCode::CONFLICT
+        );
+    }
+    let response = start(app, &pair, &csrf, "Visitor1").await;
     assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
     assert_eq!(json_body(response).await["error"], "rate_limited");
+    clock.advance(60_000);
+    assert_eq!(
+        start(app, &pair, &csrf, "Visitor1").await.status(),
+        StatusCode::OK,
+        "the window reopens"
+    );
 }
 
 #[tokio::test]

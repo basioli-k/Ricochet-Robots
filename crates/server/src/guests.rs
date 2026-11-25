@@ -38,9 +38,9 @@ pub struct Started {
     pub csrf: String,
 }
 
-/// `POST /api/guest`. Checks run cheapest-first: CSRF, the per-IP
-/// `guest_limiter` (set by `RR_GUEST_STARTS` and `RR_GUEST_WINDOW_SECS`),
-/// the name rule, then whether an account already has the name (ignoring
+/// `POST /api/guest`. Checks run cheapest-first: CSRF, the name rule (so
+/// typos don't use up the allowance), the per-IP `guest_limiter` (set by
+/// `RR_GUEST_STARTS` and `RR_GUEST_WINDOW_SECS`), then whether an account already has the name (ignoring
 /// case), so a guest can't pose as that account.
 ///
 /// # Errors
@@ -53,13 +53,13 @@ pub async fn start(
     Json(body): Json<StartGuest>,
 ) -> Result<Json<Started>, ApiError> {
     identity::require_csrf(&session, &headers).await?;
+    let name = PlayerName::parse(&body.nickname).ok_or(INVALID)?;
     if !state
         .guest_limiter
         .allow(&client_key(peer.ip()), state.clock.now())
     {
         return Err(LIMITED);
     }
-    let name = PlayerName::parse(&body.nickname).ok_or(INVALID)?;
     let taken = state
         .players
         .by_username(name.as_str())
