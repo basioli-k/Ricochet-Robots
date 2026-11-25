@@ -10,9 +10,9 @@ import { apply, type GameState } from './state';
 export interface Socket {
   send(data: string): void;
   close(): void;
-  onopen: (() => void) | null;
-  onmessage: ((event: { data: unknown }) => void) | null;
-  onclose: (() => void) | null;
+  onopen: ((event: Event) => void) | null;
+  onmessage: ((event: MessageEvent) => void) | null;
+  onclose: ((event: CloseEvent) => void) | null;
 }
 
 export type SocketFactory = (url: string) => Socket;

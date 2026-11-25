@@ -24,7 +24,7 @@ export const shapeName: Readonly<Record<Shape, MessageKey>> = {
 /** Symbols drawn on the board; icons, not text, so they need no translation. */
 export const shapeGlyph: Readonly<Record<Shape, string>> = {
   star: '★',
-  planet: '●',
+  planet: '♁',
   gear: '⚙',
   moon: '☾',
 };

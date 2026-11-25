@@ -7,9 +7,9 @@ const ANA = 'a'.repeat(32);
 class FakeSocket implements Socket {
   sent: unknown[] = [];
   closed = false;
-  onopen: (() => void) | null = null;
-  onmessage: ((event: { data: unknown }) => void) | null = null;
-  onclose: (() => void) | null = null;
+  onopen: ((event: Event) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onclose: ((event: CloseEvent) => void) | null = null;
 
   send(data: string): void {
     this.sent.push(JSON.parse(data));
@@ -18,7 +18,7 @@ class FakeSocket implements Socket {
     this.closed = true;
   }
   server(message: ServerMessage): void {
-    this.onmessage?.({ data: JSON.stringify(message) });
+    this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(message) }));
   }
 }
 
@@ -34,7 +34,7 @@ function connected(): { game: GameModel; socket: FakeSocket; urls: string[] } {
   game.connect();
   const socket = sockets[0];
   if (!socket) throw new Error('no socket');
-  socket.onopen?.();
+  socket.onopen?.(new Event('open'));
   return { game, socket, urls };
 }
 
@@ -127,15 +127,15 @@ describe('GameModel', () => {
       return socket;
     });
     game.connect();
-    sockets[0]?.onopen?.();
-    sockets[0]?.onclose?.();
+    sockets[0]?.onopen?.(new Event('open'));
+    sockets[0]?.onclose?.(new Event('close') as CloseEvent);
     expect(game.status).toBe('closed');
     // Nothing is sent on a closed socket.
     game.start();
     expect(sockets[0]?.sent).toEqual([]);
     game.connect();
     expect(game.status).toBe('connecting');
-    sockets[1]?.onopen?.();
+    sockets[1]?.onopen?.(new Event('open'));
     expect(game.status).toBe('open');
   });
 
@@ -145,7 +145,7 @@ describe('GameModel', () => {
     expect(socket.sent).toEqual([{ type: 'leave' }]);
     expect(socket.closed).toBe(true);
     expect(game.status).toBe('closed');
-    socket.onclose?.();
+    socket.onclose?.(new Event('close') as CloseEvent);
     expect(game.status).toBe('closed');
   });
 });

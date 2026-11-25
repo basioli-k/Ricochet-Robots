@@ -4,7 +4,7 @@
   import GuestEntry from './lib/components/GuestEntry.svelte';
   import LanguagePicker from './lib/components/LanguagePicker.svelte';
   import Lobby from './lib/components/Lobby.svelte';
-  import RoomPlaceholder from './lib/components/RoomPlaceholder.svelte';
+  import GameRoom from './lib/components/GameRoom.svelte';
   import { i18n, t } from './lib/i18n/locale.svelte';
 
   const app = new AppModel(new Api((input, init) => fetch(input, init)));
@@ -31,6 +31,8 @@
   {:else if app.view.name === 'lobby'}
     <Lobby {app} />
   {:else}
-    <RoomPlaceholder {app} id={app.view.id} />
+    {#key app.view.id}
+      <GameRoom {app} id={app.view.id} />
+    {/key}
   {/if}
 </main>
