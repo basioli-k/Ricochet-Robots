@@ -10,7 +10,8 @@ export default defineConfig({
   testDir: 'e2e',
   // A round waits out the 60 s bidding window.
   timeout: 150_000,
-  retries: ci ? 1 : 0,
+  // No retries: a flaky round should fail loudly, not pass on a second try.
+  retries: 0,
   workers: 1,
   reporter: ci ? 'github' : 'list',
   use: {
@@ -20,7 +21,8 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
     {
-      command: 'cargo run --locked -p server',
+      // A fresh database every run, so nothing leaks between runs.
+      command: 'rm -f target/e2e.db && cargo run --locked -p server',
       cwd: '..',
       url: 'http://127.0.0.1:8080/health',
       timeout: 600_000,

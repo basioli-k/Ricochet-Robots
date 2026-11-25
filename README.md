@@ -39,7 +39,7 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
-npm run e2e         # Playwright, two guests playing a round (about a minute)
+npm run e2e         # Playwright, two guests playing a round (waits out the 60 s bidding window)
 ```
 
 `npm run e2e` starts the Rust server and the dev server itself (or reuses
