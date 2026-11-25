@@ -10,9 +10,9 @@ pub const COOKIE: &str = "rr_session";
 pub const IDLE_EXPIRY: time::Duration = time::Duration::hours(24);
 
 /// The session layer with the project's cookie policy: `HttpOnly`,
-/// `SameSite=Lax` (the Google callback is a top-level GET from another site,
-/// which `Strict` would strip the cookie from), `Secure` when served over
-/// HTTPS, and expiry after a day of inactivity.
+/// `SameSite=Lax` (after launch, the Google callback is a top-level GET from
+/// another site, which `Strict` would strip the cookie from), `Secure` when
+/// served over HTTPS, and expiry after a day of inactivity.
 pub fn layer<S: SessionStore + Clone>(store: S, https: bool) -> SessionManagerLayer<S> {
     SessionManagerLayer::new(store)
         .with_name(COOKIE)

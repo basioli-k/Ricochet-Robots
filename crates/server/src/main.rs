@@ -17,9 +17,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .init();
     let config = Config::from_vars(|key| std::env::var(key).ok())?;
-    if config.google.is_none() {
-        tracing::warn!("GOOGLE_CLIENT_ID/SECRET not set: only guests can play");
-    }
     let store = Arc::new(SqliteStore::connect(&config.database_url).await?);
     let session_store = sessions::sqlite_store(&store).await?;
     // Purge expired sessions every hour.
@@ -32,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = AppState {
         players: store.clone(),
         games: store,
-        clock: Arc::new(SystemClock),
+        clock: Arc::new(SystemClock::default()),
     };
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
     tracing::info!(address = %config.bind, "listening");
