@@ -49,6 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             config.room_creates,
             config.room_create_window_secs.saturating_mul(1000),
         )),
+        store.clone(),
     ));
     let idle_rooms = rooms.clone();
     tokio::spawn(async move {

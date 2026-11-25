@@ -8,6 +8,7 @@ use server::rooms::state::{
     BIDDING_WINDOW_MS, CHAT_MAX_CHARS, DEMONSTRATION_MS, GameView, IDLE_ROUND_MS, Member,
     RESULT_PAUSE_MS, RoomError, RoomEvent, RoomState,
 };
+use storage::{FinishedGame, Participant, Seat};
 
 const ANA: PlayerId = PlayerId::new(1);
 const BOB: PlayerId = PlayerId::new(2);
@@ -409,4 +410,49 @@ fn chat_is_trimmed_and_bounded() {
         assert_eq!(room.chat(ANA, bad), Err(RoomError::BadChat), "{bad:?}");
     }
     assert_eq!(room.chat(PlayerId::new(9), "hi"), Err(RoomError::NotMember));
+}
+
+#[test]
+fn the_result_lists_everyone_who_played_with_their_tokens() {
+    let mut room = started();
+    assert_eq!(room.result(t(0)), None, "not over yet");
+    let cid = PlayerId::new(3);
+    room.join(Member {
+        id: cid,
+        name: "cid".into(),
+        is_guest: false,
+    })
+    .unwrap();
+    let mut now = 0;
+    for (player, robot) in [(BOB, RobotColor::Red), (ANA, RobotColor::Blue)] {
+        room.bid(player, 1, t(now)).unwrap();
+        now += BIDDING_WINDOW_MS;
+        room.tick(t(now));
+        room.move_robot(player, robot, Direction::Up, t(now))
+            .unwrap();
+        now += RESULT_PAUSE_MS;
+        if player == BOB {
+            room.leave(BOB, t(now)).unwrap();
+        }
+        room.tick(t(now));
+    }
+    let seat = |name: &str, tokens| Participant {
+        seat: Seat::Guest(name.into()),
+        tokens,
+    };
+    assert_eq!(
+        room.result(t(now)),
+        Some(FinishedGame {
+            finished_at: t(now),
+            players: vec![
+                seat("ana", 1),
+                seat("bob", 1),
+                Participant {
+                    seat: Seat::Account(cid),
+                    tokens: 0
+                },
+            ],
+        }),
+        "a late joiner counts, and so does a scorer who left"
+    );
 }

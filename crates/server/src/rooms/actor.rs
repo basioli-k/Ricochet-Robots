@@ -5,7 +5,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use domain::{Board, Direction, PlayerId, RobotColor, Robots, Shuffle, Target};
+use domain::{Board, Direction, PlayerId, RobotColor, Robots, Shuffle, Target, Timestamp};
+use storage::GameResultRepository;
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use super::state::{Member, RoomError, RoomEvent, RoomState, RoomView};
@@ -94,6 +95,7 @@ impl std::fmt::Debug for RoomHandle {
 impl RoomHandle {
     /// Starts a room's task on the current runtime. It ticks every [`TICK`]
     /// and stops when closed while empty or once every handle is dropped.
+    /// A finished game is recorded in `results` once, as it ends.
     #[must_use]
     pub fn spawn(
         board: Board,
@@ -101,6 +103,7 @@ impl RoomHandle {
         capacity: usize,
         clock: Arc<dyn Clock>,
         shuffler: Arc<dyn DeckShuffler>,
+        results: Arc<dyn GameResultRepository>,
     ) -> Self {
         let (commands, mut inbox) = mpsc::channel::<(Command, oneshot::Sender<Reply>)>(64);
         let (events, _) = broadcast::channel(EVENT_BUFFER);
@@ -120,10 +123,23 @@ impl RoomHandle {
                             }
                             continue;
                         }
-                        let answer = apply(&mut room, command, clock.now(), shuffler.as_ref(), &out);
+                        let now = clock.now();
+                        let answer = apply(&mut room, command, now, shuffler.as_ref());
+                        let answer = match answer {
+                            Applied::Events(Ok(events)) => {
+                                deliver(&room, events, now, &out, &results);
+                                Reply::Events(Ok(()))
+                            }
+                            Applied::Events(Err(e)) => Reply::Events(Err(e)),
+                            Applied::Reply(reply) => reply,
+                        };
                         let _ = reply.send(answer);
                     }
-                    _ = ticker.tick() => publish(&out, room.tick(clock.now())),
+                    _ = ticker.tick() => {
+                        let now = clock.now();
+                        let events = room.tick(now);
+                        deliver(&room, events, now, &out, &results);
+                    }
                 }
             }
         });
@@ -251,14 +267,19 @@ impl RoomHandle {
     }
 }
 
+/// What a command produced: events to deliver, or a direct answer.
+enum Applied {
+    Events(Result<Vec<RoomEvent>, RoomError>),
+    Reply(Reply),
+}
+
 fn apply(
     room: &mut RoomState,
     command: Command,
-    now: domain::Timestamp,
+    now: Timestamp,
     shuffler: &dyn DeckShuffler,
-    out: &broadcast::Sender<RoomEvent>,
-) -> Reply {
-    let result = match command {
+) -> Applied {
+    Applied::Events(match command {
         Command::Join(member) => room.join(member),
         Command::Leave(player) => room.leave(player, now),
         Command::Start(player) => room.start(player, &mut With(shuffler), now),
@@ -267,15 +288,34 @@ fn apply(
         Command::Concede(player) => room.concede(player, now),
         Command::Chat(player, text) => room.chat(player, &text),
         Command::Tick => Ok(room.tick(now)),
-        Command::Members => return Reply::Members(room.members().to_vec()),
-        Command::View => return Reply::View(Box::new(room.view())),
+        Command::Members => return Applied::Reply(Reply::Members(room.members().to_vec())),
+        Command::View => return Applied::Reply(Reply::View(Box::new(room.view()))),
         Command::CloseIfEmpty => unreachable!("handled by the task loop"),
-    };
-    Reply::Events(result.map(|events| publish(out, events)))
+    })
 }
 
-/// Broadcasts events; with no subscribers they are simply dropped.
-fn publish(out: &broadcast::Sender<RoomEvent>, events: Vec<RoomEvent>) {
+/// Broadcasts events (dropped if nobody listens) and, when the game has
+/// just ended, records its result. `GameOver` is emitted once per game, so
+/// the result is recorded once; storing it runs apart from the room so a
+/// slow database never holds up play.
+fn deliver(
+    room: &RoomState,
+    events: Vec<RoomEvent>,
+    now: Timestamp,
+    out: &broadcast::Sender<RoomEvent>,
+    results: &Arc<dyn GameResultRepository>,
+) {
+    let over = events
+        .iter()
+        .any(|e| matches!(e, RoomEvent::GameOver { .. }));
+    if over && let Some(game) = room.result(now) {
+        let results = results.clone();
+        tokio::spawn(async move {
+            if let Err(e) = results.record(&game).await {
+                tracing::error!(error = %e, "recording a finished game failed");
+            }
+        });
+    }
     for event in events {
         let _ = out.send(event);
     }

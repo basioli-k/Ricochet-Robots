@@ -61,6 +61,7 @@ pub async fn apps_at(limits: Limits, clients: &[SocketAddr]) -> (Vec<Router>, Ar
         clock.clone(),
         Arc::new(RandomShuffler),
         Arc::new(SlidingWindow::new(limits.room_creates, 60_000)),
+        store.clone(),
     );
     let state = AppState {
         players: store.clone(),

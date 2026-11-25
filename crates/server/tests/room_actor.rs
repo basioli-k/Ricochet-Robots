@@ -9,7 +9,10 @@ use domain::{
 };
 use server::clock::FakeClock;
 use server::rooms::actor::{CallError, DeckShuffler, RoomHandle, TICK};
-use server::rooms::state::{BIDDING_WINDOW_MS, DEMONSTRATION_MS, Member, RoomError, RoomEvent};
+use server::rooms::state::{
+    BIDDING_WINDOW_MS, DEMONSTRATION_MS, Member, RESULT_PAUSE_MS, RoomError, RoomEvent,
+};
+use storage::{GameResultRepository, InMemoryStore, Participant, Seat};
 use tokio::sync::broadcast;
 
 const ANA: PlayerId = PlayerId::new(1);
@@ -26,13 +29,19 @@ fn pos(row: u8, col: u8) -> Position {
 }
 
 fn room(capacity: usize, clock: Arc<FakeClock>) -> RoomHandle {
+    recording(capacity, clock, Arc::new(InMemoryStore::new()))
+}
+
+/// A room with one target (red moon, solved by Red Up) recording into
+/// `results`.
+fn recording(capacity: usize, clock: Arc<FakeClock>, results: Arc<InMemoryStore>) -> RoomHandle {
     let board = BoardBuilder::new()
         .target(pos(0, 5), Target::Colored(RobotColor::Red, Symbol::Moon))
         .unwrap()
         .build()
         .unwrap();
     let robots = Robots::new([pos(5, 5), pos(5, 10), pos(10, 0), pos(15, 15)]).unwrap();
-    RoomHandle::spawn(board, robots, capacity, clock, Arc::new(InOrder))
+    RoomHandle::spawn(board, robots, capacity, clock, Arc::new(InOrder), results)
 }
 
 fn member(id: u128, name: &str) -> Member {
@@ -202,4 +211,61 @@ async fn chat_and_the_view_go_through_the_handle() {
     let view = room.view().await.unwrap();
     assert_eq!(view.members, [member(1, "ana")]);
     assert!(view.game.is_none());
+}
+
+#[tokio::test]
+async fn a_finished_game_is_recorded_once() {
+    let clock = Arc::new(FakeClock::at(0));
+    let results = Arc::new(InMemoryStore::new());
+    let room = recording(4, clock.clone(), results.clone());
+    let mut events = room.subscribe();
+    room.join(member(1, "ana")).await.unwrap();
+    room.join(member(2, "bob")).await.unwrap();
+    room.start(ANA).await.unwrap();
+    room.bid(BOB, 1).await.unwrap();
+    clock.advance(BIDDING_WINDOW_MS);
+    room.tick().await.unwrap();
+    room.move_robot(BOB, RobotColor::Red, Direction::Up)
+        .await
+        .unwrap();
+    clock.advance(RESULT_PAUSE_MS);
+    room.tick().await.unwrap();
+    loop {
+        if let RoomEvent::GameOver { leaders, .. } = next(&mut events).await {
+            assert_eq!(leaders, [BOB]);
+            break;
+        }
+    }
+    room.tick().await.unwrap();
+    // Recording runs as its own task; give it a moment.
+    let mut recorded = Vec::new();
+    for _ in 0..100 {
+        recorded = results.recent_games(10).await.unwrap();
+        if !recorded.is_empty() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    // Later ticks and calls on the finished game record nothing more.
+    room.tick().await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    let recorded = results.recent_games(10).await.unwrap();
+    assert_eq!(recorded.len(), 1, "exactly once");
+    assert_eq!(
+        recorded[0].players,
+        [
+            Participant {
+                seat: Seat::Guest("ana".into()),
+                tokens: 0
+            },
+            Participant {
+                seat: Seat::Guest("bob".into()),
+                tokens: 1
+            }
+        ]
+    );
+    assert_eq!(
+        recorded[0].finished_at,
+        Timestamp(BIDDING_WINDOW_MS + RESULT_PAUSE_MS)
+    );
 }

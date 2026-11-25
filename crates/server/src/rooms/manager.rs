@@ -10,6 +10,7 @@ use super::actor::{DeckShuffler, RoomHandle};
 use crate::clock::Clock;
 use crate::identity::random_token;
 use crate::rate_limit::RateLimiter;
+use storage::GameResultRepository;
 
 /// An empty room is closed after this long.
 pub const EMPTY_CLOSE_MS: u64 = 10 * 60_000;
@@ -70,6 +71,7 @@ pub struct RoomManager {
     shuffler: Arc<dyn DeckShuffler>,
     /// Room creations per client over time, on top of the open-room caps.
     create_limiter: Arc<dyn RateLimiter>,
+    results: Arc<dyn GameResultRepository>,
     rooms: Mutex<HashMap<String, Entry>>,
 }
 
@@ -89,6 +91,7 @@ impl RoomManager {
         clock: Arc<dyn Clock>,
         shuffler: Arc<dyn DeckShuffler>,
         create_limiter: Arc<dyn RateLimiter>,
+        results: Arc<dyn GameResultRepository>,
     ) -> Self {
         Self {
             limits,
@@ -96,6 +99,7 @@ impl RoomManager {
             clock,
             shuffler,
             create_limiter,
+            results,
             rooms: Mutex::new(HashMap::new()),
         }
     }
@@ -140,6 +144,7 @@ impl RoomManager {
             self.limits.capacity,
             self.clock.clone(),
             self.shuffler.clone(),
+            self.results.clone(),
         );
         let id = random_token();
         rooms.insert(

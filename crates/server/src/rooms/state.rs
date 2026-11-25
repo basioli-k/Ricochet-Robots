@@ -2,6 +2,8 @@
 //! machine. The async actor around it only forwards commands and events, so
 //! everything here is tested without a runtime. Time arrives as `now`.
 
+use storage::{FinishedGame, Participant, Seat};
+
 use domain::{
     Bid, Board, Direction, Game, GameError, Phase, PlayerId, RobotColor, Robots, Shuffle, Target,
     Timestamp,
@@ -116,6 +118,8 @@ pub struct RoomState {
     capacity: usize,
     board: Board,
     members: Vec<Member>,
+    /// Everyone who was a member while the game ran, for its result.
+    players: Vec<Member>,
     setup: Option<(Board, Robots)>,
     game: Option<Game>,
     since: Option<Since>,
@@ -132,6 +136,7 @@ impl RoomState {
             capacity,
             board: board.clone(),
             members: Vec::new(),
+            players: Vec::new(),
             setup: Some((board, robots)),
             game: None,
             since: None,
@@ -163,6 +168,35 @@ impl RoomState {
                 targets_left: game.targets_left(),
                 over: game.is_over(),
             }),
+        }
+    }
+
+    /// The finished game to record: everyone who played while it ran, with
+    /// the tokens they won. `None` until the game is over.
+    #[must_use]
+    pub fn result(&self, now: Timestamp) -> Option<FinishedGame> {
+        let game = self.game.as_ref().filter(|g| g.is_over())?;
+        let players = self
+            .players
+            .iter()
+            .map(|m| Participant {
+                seat: if m.is_guest {
+                    Seat::Guest(m.name.clone())
+                } else {
+                    Seat::Account(m.id)
+                },
+                tokens: game.scores().get(&m.id).copied().unwrap_or(0),
+            })
+            .collect();
+        Some(FinishedGame {
+            finished_at: now,
+            players,
+        })
+    }
+
+    fn add_player(&mut self, member: &Member) {
+        if !self.players.iter().any(|p| p.id == member.id) {
+            self.players.push(member.clone());
         }
     }
 
@@ -217,6 +251,9 @@ impl RoomState {
         {
             return Err(RoomError::NameTaken);
         }
+        if self.game.is_some() {
+            self.add_player(&member);
+        }
         self.members.push(member.clone());
         Ok(vec![RoomEvent::Joined(member)])
     }
@@ -257,6 +294,7 @@ impl RoomState {
         };
         let event = round_started(&game);
         self.game = Some(game);
+        self.players.clone_from(&self.members);
         self.mark(now);
         Ok(vec![event])
     }

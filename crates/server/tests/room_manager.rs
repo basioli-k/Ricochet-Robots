@@ -8,6 +8,7 @@ use server::rate_limit::SlidingWindow;
 use server::rooms::actor::{CallError, RandomShuffler};
 use server::rooms::manager::{CreateError, Creator, EMPTY_CLOSE_MS, RoomLimits, RoomManager};
 use server::rooms::state::Member;
+use storage::InMemoryStore;
 
 fn manager(global: usize, per_owner: usize, clock: Arc<FakeClock>) -> RoomManager {
     limited(global, per_owner, usize::MAX, clock)
@@ -39,6 +40,7 @@ fn sharing(
         clock,
         Arc::new(RandomShuffler),
         create_limiter,
+        Arc::new(InMemoryStore::new()),
     )
 }
 
