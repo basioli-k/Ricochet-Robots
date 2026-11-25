@@ -115,16 +115,17 @@ impl RoomManager {
     /// `TooManyRooms` at the global cap, `OwnerLimit` if the player or the
     /// client is at their cap, `RateLimited` if the client creates too often.
     pub fn create(&self, by: Creator<'_>) -> Result<(String, RoomHandle), CreateError> {
-        let owners = [by.player, by.client];
+        // Separate namespaces, so a player ID can't collide with a client key.
+        let owners = [
+            format!("player:{}", by.player),
+            format!("client:{}", by.client),
+        ];
         let mut rooms = self.lock();
         if rooms.len() >= self.limits.global {
             return Err(CreateError::TooManyRooms);
         }
-        for owner in owners {
-            let open = rooms
-                .values()
-                .filter(|e| e.owners.iter().any(|o| o == owner))
-                .count();
+        for owner in &owners {
+            let open = rooms.values().filter(|e| e.owners.contains(owner)).count();
             if open >= self.limits.per_owner {
                 return Err(CreateError::OwnerLimit);
             }
@@ -145,7 +146,7 @@ impl RoomManager {
             id.clone(),
             Entry {
                 handle: handle.clone(),
-                owners: owners.iter().map(|&o| o.to_owned()).collect(),
+                owners: owners.into(),
                 empty_since: None,
             },
         );

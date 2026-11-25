@@ -249,14 +249,16 @@ fn a_bidder_who_left_is_skipped_when_bidding_closes() {
 fn the_last_round_ends_the_game_with_its_leaders() {
     let mut room = started();
     let mut now = 0;
+    let mut last = Vec::new();
     for robot in [RobotColor::Red, RobotColor::Blue] {
         room.bid(ANA, 1, t(now)).unwrap();
         now += BIDDING_WINDOW_MS;
         room.tick(t(now));
         room.move_robot(ANA, robot, Direction::Up, t(now)).unwrap();
         now += RESULT_PAUSE_MS;
-        room.tick(t(now));
+        last = room.tick(t(now));
     }
+    assert_eq!(last, [RoomEvent::GameOver { leaders: vec![ANA] }]);
     assert!(room.game().unwrap().is_over());
     assert_eq!(room.tick(t(now + 1)), [], "nothing happens after the game");
 }
@@ -267,5 +269,63 @@ fn game_refusals_pass_through_unchanged() {
     assert_eq!(
         room.move_robot(ANA, RobotColor::Red, Direction::Up, t(0)),
         Err(RoomError::Game(GameError::Round(RoundError::WrongPhase)))
+    );
+}
+
+#[test]
+fn a_demonstrator_can_concede() {
+    let mut room = started();
+    room.bid(ANA, 2, t(0)).unwrap();
+    room.tick(t(BIDDING_WINDOW_MS));
+    assert_eq!(
+        room.concede(BOB, t(BIDDING_WINDOW_MS + 1)),
+        Err(RoomError::Game(GameError::Round(RoundError::NotYourTurn)))
+    );
+    assert_eq!(
+        room.concede(ANA, t(BIDDING_WINDOW_MS + 1)).unwrap(),
+        [RoomEvent::RoundEnded {
+            phase: Phase::Unsolved
+        }]
+    );
+}
+
+#[test]
+fn only_members_can_leave() {
+    let mut room = started();
+    assert_eq!(
+        room.leave(PlayerId::new(9), t(0)),
+        Err(RoomError::NotMember)
+    );
+}
+
+#[test]
+fn a_board_without_targets_ends_at_once() {
+    let empty = BoardBuilder::new().build().unwrap();
+    let mut room = RoomState::new(empty, robots(), 2);
+    room.join(member(ANA, "ana")).unwrap();
+    assert_eq!(
+        room.start(ANA, &mut InOrder, t(0)).unwrap(),
+        [RoomEvent::GameOver { leaders: vec![] }]
+    );
+}
+
+#[test]
+fn a_rejoin_beats_a_full_room_and_full_beats_a_taken_name() {
+    let mut room = RoomState::new(board(), robots(), 1);
+    room.join(member(ANA, "ana")).unwrap();
+    assert_eq!(room.join(member(ANA, "ana")).unwrap(), []);
+    assert_eq!(room.join(member(BOB, "ana")), Err(RoomError::Full));
+}
+
+#[test]
+fn a_round_whose_bidders_all_left_ends_unsolved() {
+    let mut room = started();
+    room.bid(BOB, 1, t(0)).unwrap();
+    room.leave(BOB, t(1)).unwrap();
+    assert_eq!(
+        room.tick(t(BIDDING_WINDOW_MS)),
+        [RoomEvent::RoundEnded {
+            phase: Phase::Unsolved
+        }]
     );
 }

@@ -42,7 +42,7 @@ fn member(id: u128, name: &str) -> Member {
     }
 }
 
-/// The next event that isn't a timer-driven no-op.
+/// The next event, failing after 2 s.
 async fn next(events: &mut broadcast::Receiver<RoomEvent>) -> RoomEvent {
     tokio::time::timeout(std::time::Duration::from_secs(2), events.recv())
         .await

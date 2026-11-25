@@ -77,6 +77,7 @@ struct Since {
     at: Timestamp,
 }
 
+/// A room plays one game; there is no rematch yet.
 #[derive(Debug)]
 pub struct RoomState {
     capacity: usize,

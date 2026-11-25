@@ -95,6 +95,18 @@ async fn a_room_counts_against_its_player_and_client() {
             client: "198.51.100.1",
         })
         .unwrap();
+    rooms
+        .create(Creator {
+            player: "203.0.113.9",
+            client: "x",
+        })
+        .unwrap();
+    rooms
+        .create(Creator {
+            player: "y",
+            client: "203.0.113.9",
+        })
+        .expect("a player ID never counts as a client key");
 }
 
 #[tokio::test]
@@ -114,6 +126,19 @@ async fn room_creation_is_rate_limited_per_client() {
         Some(CreateError::TooManyRooms)
     );
     open.create(from("p3")).unwrap();
+    // Nor is one refused by the owner cap: p3 already has a room.
+    let one_each = sharing(
+        10,
+        1,
+        Arc::new(SlidingWindow::new(1, 60_000)),
+        clock.clone(),
+    );
+    one_each.create(from("p3")).unwrap();
+    assert_eq!(
+        one_each.create(from("p3")).err(),
+        Some(CreateError::OwnerLimit),
+        "the cap's error wins over the limiter's"
+    );
     assert_eq!(
         open.create(from("p4")).err(),
         Some(CreateError::RateLimited)
