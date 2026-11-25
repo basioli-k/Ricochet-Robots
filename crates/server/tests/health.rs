@@ -4,6 +4,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use server::clock::FakeClock;
+use server::rate_limit::SlidingWindow;
 use server::{AppState, app, sessions};
 use storage::InMemoryStore;
 use tower::ServiceExt;
@@ -14,6 +15,7 @@ fn state() -> AppState {
         players: store.clone(),
         games: store,
         clock: Arc::new(FakeClock::at(0)),
+        guest_limiter: Arc::new(SlidingWindow::new(5, 1_000)),
     }
 }
 

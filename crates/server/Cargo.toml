@@ -12,7 +12,9 @@ workspace = true
 async-trait = "0.1.92"
 axum = "0.8.9"
 domain.workspace = true
+rand = "0.10.3"
 serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
 storage.workspace = true
 thiserror = "2.0.21"
 time = "0.3.44"

@@ -4,6 +4,8 @@ use std::sync::Arc;
 
 use server::clock::SystemClock;
 use server::config::Config;
+use server::guests;
+use server::rate_limit::SlidingWindow;
 use server::sessions;
 use server::{AppState, app};
 use storage::SqliteStore;
@@ -39,10 +41,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         players: store.clone(),
         games: store,
         clock: Arc::new(SystemClock::default()),
+        guest_limiter: Arc::new(SlidingWindow::new(
+            guests::GUEST_STARTS,
+            guests::GUEST_WINDOW_MS,
+        )),
     };
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
     tracing::info!(address = %config.bind, "listening");
-    axum::serve(listener, app(state, sessions::layer(session_store, https)))
+    // Connection info gives handlers the client IP for rate limits.
+    let service = app(state, sessions::layer(session_store, https))
+        .into_make_service_with_connect_info::<std::net::SocketAddr>();
+    axum::serve(listener, service)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
     Ok(())
