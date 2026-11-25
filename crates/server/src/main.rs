@@ -5,6 +5,7 @@ use std::sync::Arc;
 use domain::fixed_board;
 use server::clock::{Clock, SystemClock};
 use server::config::Config;
+use server::game_socket::Heartbeat;
 use server::rate_limit::SlidingWindow;
 use server::rooms::actor::RandomShuffler;
 use server::rooms::manager::RoomManager;
@@ -75,6 +76,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             config.guest_window_secs.saturating_mul(1000),
         )),
         rooms,
+        chat_limiter: Arc::new(SlidingWindow::new(config.chat_per_sec, 1000)),
+        action_limiter: Arc::new(SlidingWindow::new(config.actions_per_sec, 1000)),
+        public_origin: config.public_origin(),
+        heartbeat: Heartbeat::default(),
     };
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
     tracing::info!(address = %config.bind, "listening");
