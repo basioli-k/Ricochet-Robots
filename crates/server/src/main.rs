@@ -19,12 +19,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::from_vars(|key| std::env::var(key).ok())?;
     let store = Arc::new(SqliteStore::connect(&config.database_url).await?);
     let session_store = sessions::sqlite_store(&store).await?;
-    // Purge expired sessions every hour.
-    tokio::spawn(
-        session_store
-            .clone()
-            .continuously_delete_expired(tokio::time::Duration::from_hours(1)),
-    );
+    // Purge expired sessions every hour. The library's task stops at its
+    // first error (e.g. a busy database), so restart it after logging.
+    let purger = session_store.clone();
+    tokio::spawn(async move {
+        loop {
+            if let Err(e) = purger
+                .clone()
+                .continuously_delete_expired(tokio::time::Duration::from_hours(1))
+                .await
+            {
+                tracing::warn!(error = %e, "purging expired sessions failed; retrying");
+            }
+            tokio::time::sleep(tokio::time::Duration::from_mins(1)).await;
+        }
+    });
     let https = config.secure_cookies();
     let state = AppState {
         players: store.clone(),
@@ -34,9 +43,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
     tracing::info!(address = %config.bind, "listening");
     axum::serve(listener, app(state, sessions::layer(session_store, https)))
-        .with_graceful_shutdown(async {
-            let _ = tokio::signal::ctrl_c().await;
-        })
+        .with_graceful_shutdown(shutdown_signal())
         .await?;
     Ok(())
+}
+
+/// Ctrl-C, or SIGTERM as sent by container runtimes on stop.
+async fn shutdown_signal() {
+    let terminate = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut signal) => {
+                signal.recv().await;
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "can't listen for SIGTERM");
+                std::future::pending::<()>().await;
+            }
+        }
+    };
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {}
+        () = terminate => {}
+    }
+    tracing::info!("shutting down");
 }

@@ -94,7 +94,10 @@ async fn sessions_survive_a_restart_in_sqlite() {
             sessions::sqlite_store(&store).await.unwrap(),
             false,
         ));
-        set_cookie(app).await
+        let cookie = set_cookie(app).await;
+        // Close the database as a stopping server would.
+        store.pool().close().await;
+        cookie
     };
     // A new store and app on the same file stand in for a restarted server.
     let store = storage::SqliteStore::connect(&url).await.unwrap();

@@ -10,8 +10,8 @@ pub trait Clock: Send + Sync {
 }
 
 /// The system clock, made monotonic: if the system time is set back, it
-/// keeps returning the last value until real time catches up, so bids can
-/// never be ordered against the time they were placed.
+/// keeps returning the last value until real time catches up, so bids are
+/// never ranked out of the order they were placed in.
 #[derive(Debug, Default)]
 pub struct SystemClock {
     last: AtomicU64,
