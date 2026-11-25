@@ -46,25 +46,27 @@ describe('apply', () => {
       { type: 'bid_placed', player: ANA, moves: 5, closes_at: 61_000 },
       { type: 'bid_placed', player: BOB, moves: 3, closes_at: 61_000 },
       { type: 'bid_placed', player: ANA, moves: 2, closes_at: 61_000 },
-      { type: 'demonstration_started', player: ANA, bid: 2, until: 121_000 },
+      { type: 'demonstration_started', player: ANA, bid: 2, until: 121_000, robots },
+      { type: 'robot_moved', robot: 'red', robots: moved },
       { type: 'robot_moved', robot: 'red', robots: moved },
     );
     expect(state.round?.bids).toEqual([
       { player: ANA, moves: 2 },
       { player: BOB, moves: 3 },
     ]);
+    // The repeated move (as after a snapshot) counts once.
     expect(state.round?.phase).toEqual({ kind: 'demonstrating', player: ANA, bid: 2, moves_made: 1 });
     expect(state.round?.deadline).toBe(121_000);
     expect(state.round?.robots).toEqual(moved);
 
-    const solved = { type: 'round_resolved', phase: { kind: 'solved', winner: ANA, moves: 1 } } as const;
+    const solved = { type: 'round_resolved', phase: { kind: 'solved', winner: ANA, moves: 1 }, robots: moved } as const;
     const after = play(snapshot, bob, started, solved, solved);
     expect(after.round?.scores).toEqual([{ player: ANA, tokens: 1 }]);
     expect(after.round?.deadline).toBeNull();
   });
 
   it('keeps scores into the next round and takes the final ones at the end', () => {
-    const solved = { type: 'round_resolved', phase: { kind: 'solved', winner: BOB, moves: 1 } } as const;
+    const solved = { type: 'round_resolved', phase: { kind: 'solved', winner: BOB, moves: 1 }, robots } as const;
     const state = play(snapshot, bob, started, solved, started);
     expect(state.round?.scores).toEqual([{ player: BOB, tokens: 1 }]);
     expect(state.round?.phase).toEqual({ kind: 'bidding' });
@@ -113,9 +115,34 @@ describe('apply', () => {
   });
 });
 
+describe('robot positions', () => {
+  it('come from the server when a demonstration starts or a round ends', () => {
+    const state = play(
+      snapshot,
+      started,
+      { type: 'demonstration_started', player: ANA, bid: 2, until: 1, robots },
+      { type: 'robot_moved', robot: 'red', robots: moved },
+      { type: 'demonstration_started', player: BOB, bid: 3, until: 2, robots },
+    );
+    expect(state.round?.robots).toEqual(robots);
+    const ended = apply(state, { type: 'round_resolved', phase: { kind: 'unsolved' }, robots: moved });
+    expect(ended?.round?.robots).toEqual(moved);
+  });
+
+  it('keep equal bids in the order made', () => {
+    const state = play(
+      snapshot,
+      started,
+      { type: 'bid_placed', player: BOB, moves: 4, closes_at: 1 },
+      { type: 'bid_placed', player: ANA, moves: 4, closes_at: 1 },
+    );
+    expect(state.round?.bids.map((b) => b.player)).toEqual([BOB, ANA]);
+  });
+});
+
 describe('helpers', () => {
   it('names players and ranks them, members without tokens included', () => {
-    const solved = { type: 'round_resolved', phase: { kind: 'solved', winner: BOB, moves: 1 } } as const;
+    const solved = { type: 'round_resolved', phase: { kind: 'solved', winner: BOB, moves: 1 }, robots } as const;
     const state = play(snapshot, bob, started, solved);
     expect(nameOf(state, BOB)).toBe('Bob1');
     expect(nameOf(state, 'c'.repeat(32))).toBe('cccccc');

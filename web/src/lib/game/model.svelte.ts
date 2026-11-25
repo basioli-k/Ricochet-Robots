@@ -34,6 +34,8 @@ export class GameModel {
   status = $state<'connecting' | 'open' | 'closed'>('connecting');
   selected = $state<Robot>('red');
   private socket: Socket | null = null;
+  /** Reconnect when the current socket closes (it fell behind). */
+  private rejoin = false;
 
   constructor(
     private readonly url: string,
@@ -49,20 +51,35 @@ export class GameModel {
       this.error = null;
     };
     socket.onmessage = (event) => {
-      if (typeof event.data === 'string') this.receive(JSON.parse(event.data) as ServerMessage);
+      if (typeof event.data !== 'string') return;
+      let message: ServerMessage;
+      try {
+        message = JSON.parse(event.data) as ServerMessage;
+      } catch {
+        return; // Not ours to understand; the server only sends JSON.
+      }
+      this.receive(message);
     };
     socket.onclose = () => {
-      if (this.socket === socket) {
-        this.socket = null;
-        this.status = 'closed';
+      if (this.socket !== socket) return;
+      this.socket = null;
+      this.status = 'closed';
+      // The server closes a socket that fell behind; catch up at once.
+      if (this.rejoin) {
+        this.rejoin = false;
+        this.connect();
       }
     };
     this.socket = socket;
   }
 
   receive(message: ServerMessage): void {
-    if (message.type === 'error') this.error = errorKey(message.code);
-    else this.state = apply(this.state, message);
+    if (message.type === 'error') {
+      this.error = errorKey(message.code);
+      if (message.code === 'lagged') this.rejoin = true;
+    } else {
+      this.state = apply(this.state, message);
+    }
   }
 
   /** Whether the server expects this player's moves right now. */
@@ -76,8 +93,9 @@ export class GameModel {
   }
 
   bid(moves: number): void {
+    // A bid must fit the protocol's byte; the server judges everything else.
     if (Number.isInteger(moves) && moves >= 1 && moves <= 255) this.send({ type: 'bid', moves });
-    else this.error = 'errorBidZero';
+    else this.error = 'errorBidRange';
   }
 
   select(robot: Robot): void {
@@ -92,13 +110,17 @@ export class GameModel {
     this.send({ type: 'concede' });
   }
 
-  chat(text: string): void {
-    if (text.trim() !== '') this.send({ type: 'chat', text });
+  /** Sends a chat message; false if it couldn't go (empty, or no connection). */
+  chat(text: string): boolean {
+    if (text.trim() === '' || this.status !== 'open') return false;
+    this.send({ type: 'chat', text });
+    return true;
   }
 
   /** Leaves the room and closes the socket for good. */
   leave(): void {
     this.send({ type: 'leave' });
+    this.rejoin = false;
     const socket = this.socket;
     this.socket = null;
     this.status = 'closed';

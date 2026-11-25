@@ -42,7 +42,10 @@
   ];
 
   function onkeydown(event: KeyboardEvent) {
-    const typing = event.target instanceof HTMLInputElement;
+    const typing =
+      event.target instanceof HTMLInputElement ||
+      event.target instanceof HTMLTextAreaElement ||
+      event.target instanceof HTMLSelectElement;
     if (typing || event.ctrlKey || event.metaKey || event.altKey) return;
     const action = keyAction(event.key);
     if (!action) return;
@@ -59,8 +62,7 @@
 
   function sendChat(event: SubmitEvent) {
     event.preventDefault();
-    game.chat(message);
-    message = '';
+    if (game.chat(message)) message = '';
   }
 
   function leave() {
@@ -89,6 +91,7 @@
   </div>
 
   <aside>
+    <p class="code">{t('roomCode', { code: id.slice(0, 6) })}</p>
     {#if game.error}
       <p class="error" role="alert">{t(game.error)}</p>
     {/if}
@@ -156,11 +159,11 @@
                 game.concede();
               }}>{t('concede')}</button>
             {:else}
-              <p>{nameOf(view, round.phase.player)} {t('demonstratingOther')}</p>
+              <p>{t('demonstratingOther', { name: nameOf(view, round.phase.player) })}</p>
             {/if}
             <p>{t('movesMade')}: {round.phase.moves_made} / {round.phase.bid}</p>
           {:else if round.phase.kind === 'solved'}
-            <p><strong>{t('roundSolved')}</strong> {nameOf(view, round.phase.winner)}</p>
+            <p><strong>{t('roundSolved', { name: nameOf(view, round.phase.winner) })}</strong></p>
             <p>{t('movesMade')}: {round.phase.moves}</p>
             <p>{t('nextRound')}</p>
           {:else}
@@ -168,7 +171,7 @@
             <p>{t('nextRound')}</p>
           {/if}
           {#if secondsLeft !== null}
-            <p class="clock">{t('timeLeft')}: {secondsLeft} s</p>
+            <p class="clock">{t('timeLeft', { seconds: secondsLeft })}</p>
           {/if}
           {#if round.phase.kind === 'bidding' || round.phase.kind === 'demonstrating'}
             <h3>{t('bidsTitle')}</h3>

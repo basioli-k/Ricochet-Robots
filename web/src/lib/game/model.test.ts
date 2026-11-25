@@ -90,7 +90,7 @@ describe('GameModel', () => {
     const { game, socket } = connected();
     for (const bad of [0, 2.5, 256, Number.NaN]) game.bid(bad);
     expect(socket.sent).toEqual([]);
-    expect(game.error).toBe('errorBidZero');
+    expect(game.error).toBe('errorBidRange');
   });
 
   it('shows refusals and clears them on the next intent', () => {
@@ -115,7 +115,18 @@ describe('GameModel', () => {
         yellow: { row: 0, col: 3 },
       },
     });
-    socket.server({ type: 'demonstration_started', player: ANA, bid: 2, until: 1 });
+    socket.server({
+      type: 'demonstration_started',
+      player: ANA,
+      bid: 2,
+      until: 1,
+      robots: {
+        red: { row: 0, col: 0 },
+        blue: { row: 0, col: 1 },
+        green: { row: 0, col: 2 },
+        yellow: { row: 0, col: 3 },
+      },
+    });
     expect(game.demonstrating).toBe(true);
   });
 
@@ -137,6 +148,33 @@ describe('GameModel', () => {
     expect(game.status).toBe('connecting');
     sockets[1]?.onopen?.(new Event('open'));
     expect(game.status).toBe('open');
+  });
+
+  it('reconnects by itself after falling behind, and ignores garbage', () => {
+    const sockets: FakeSocket[] = [];
+    const game = new GameModel('ws://x', () => {
+      const socket = new FakeSocket();
+      sockets.push(socket);
+      return socket;
+    });
+    game.connect();
+    sockets[0]?.onopen?.(new Event('open'));
+    sockets[0]?.onmessage?.(new MessageEvent('message', { data: 'not json' }));
+    expect(game.error).toBeNull();
+    sockets[0]?.server({ type: 'error', code: 'lagged' });
+    sockets[0]?.onclose?.(new Event('close') as CloseEvent);
+    expect(sockets).toHaveLength(2);
+    expect(game.status).toBe('connecting');
+    sockets[1]?.onclose?.(new Event('close') as CloseEvent);
+    expect(sockets).toHaveLength(2);
+    expect(game.status).toBe('closed');
+  });
+
+  it('keeps a chat message that could not be sent', () => {
+    const { game, socket } = connected();
+    socket.onclose?.(new Event('close') as CloseEvent);
+    expect(game.chat('hi')).toBe(false);
+    expect(socket.sent).toEqual([]);
   });
 
   it('leaves the room and closes for good', () => {

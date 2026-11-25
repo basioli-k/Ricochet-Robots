@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { en, hr } from './messages';
-import { pickLocale, translate } from './index';
+import { fill, pickLocale, translate } from './index';
 
 describe('pickLocale', () => {
   it('matches on the primary language subtag', () => {
@@ -18,6 +18,13 @@ describe('pickLocale', () => {
   it('falls back to English', () => {
     expect(pickLocale(['de', 'fr'])).toBe('en');
     expect(pickLocale([])).toBe('en');
+  });
+});
+
+describe('fill', () => {
+  it('replaces known placeholders and leaves others', () => {
+    expect(fill('{name} has {n} – {other}', { name: 'Ana', n: 3 })).toBe('Ana has 3 – {other}');
+    expect(fill('{toString}', {})).toBe('{toString}');
   });
 });
 

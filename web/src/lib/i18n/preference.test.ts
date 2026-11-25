@@ -73,6 +73,12 @@ describe('error messages', () => {
       'bad_chat',
       'lagged',
       'room_closed',
+      'round_in_progress',
+      'game_over',
+      'bidding_open',
+      'no_bids',
+      'bad_message',
+      'not_member',
     ]) {
       expect(errorKey(code)).not.toBe('errorUnknown');
       expect(en[errorKey(code)]).toBeTruthy();

@@ -1,4 +1,4 @@
-import { translate, type Locale } from './index';
+import { fill, translate, type Locale } from './index';
 import type { MessageKey } from './messages';
 import { browserStore, loadLocale, saveLocale } from './preference';
 
@@ -10,6 +10,7 @@ export function setLocale(locale: Locale): void {
   saveLocale(browserStore(), locale);
 }
 
-export function t(key: MessageKey): string {
-  return translate(i18n.locale, key);
+export function t(key: MessageKey, values?: Readonly<Record<string, string | number>>): string {
+  const text = translate(i18n.locale, key);
+  return values ? fill(text, values) : text;
 }

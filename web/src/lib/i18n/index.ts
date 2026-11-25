@@ -24,3 +24,13 @@ export function pickLocale(preferred: readonly string[]): Locale {
 export function translate(locale: Locale, key: MessageKey): string {
   return locales[locale][key];
 }
+
+/**
+ * Fills `{name}` placeholders, so each language orders a sentence its own
+ * way. Unknown placeholders stay as they are.
+ */
+export function fill(text: string, values: Readonly<Record<string, string | number>>): string {
+  return text.replace(/\{(\w+)\}/g, (whole, name: string) =>
+    Object.hasOwn(values, name) ? String(values[name]) : whole,
+  );
+}

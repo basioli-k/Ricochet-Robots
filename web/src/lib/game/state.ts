@@ -97,6 +97,7 @@ export function apply(state: GameState | null, message: ServerMessage): GameStat
         ...state,
         round: {
           ...round,
+          robots: message.robots,
           phase: {
             kind: 'demonstrating',
             player: message.player,
@@ -107,7 +108,9 @@ export function apply(state: GameState | null, message: ServerMessage): GameStat
         },
       };
     case 'robot_moved': {
-      if (!round) return state;
+      // A real move always changes the robots (the server refuses others),
+      // so the same positions mean this move is already counted.
+      if (!round || sameRobots(round.robots, message.robots)) return state;
       const phase =
         round.phase.kind === 'demonstrating'
           ? { ...round.phase, moves_made: round.phase.moves_made + 1 }
@@ -121,6 +124,7 @@ export function apply(state: GameState | null, message: ServerMessage): GameStat
         round: {
           ...round,
           phase: message.phase,
+          robots: message.robots,
           deadline: null,
           scores:
             message.phase.kind === 'solved'
@@ -149,6 +153,10 @@ function withBid(bids: BidView[], bid: BidView): BidView[] {
 function addToken(scores: Score[], player: string): Score[] {
   if (!scores.some((s) => s.player === player)) return [...scores, { player, tokens: 1 }];
   return scores.map((s) => (s.player === player ? { ...s, tokens: s.tokens + 1 } : s));
+}
+
+function sameRobots(a: Robots, b: Robots): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function samePhase(a: Phase, b: Phase): boolean {

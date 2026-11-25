@@ -29,6 +29,12 @@ const byCode: Readonly<Record<string, MessageKey>> = {
   bad_chat: 'errorBadChat',
   lagged: 'errorLagged',
   room_closed: 'errorRoomClosed',
+  round_in_progress: 'errorRoundInProgress',
+  game_over: 'errorGameOver',
+  bidding_open: 'errorBiddingOpen',
+  no_bids: 'errorNoBids',
+  bad_message: 'errorBadMessage',
+  not_member: 'errorNotMember',
 };
 
 export function errorKey(code: string): MessageKey {
