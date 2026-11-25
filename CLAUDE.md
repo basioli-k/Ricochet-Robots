@@ -58,20 +58,11 @@ Read config from environment variables and document names in
 ## Pull requests
 
 Every change reaches `main` through a pull request, including
-`chore: update agent standards` bumps. Two kinds of change may ride along
-in the current PR as their own commit, overriding "one topic per branch":
-standards bumps, and small leftovers from the previous PR's review (named
-as such in the commit message and PR description).
+`chore: update agent standards` bumps. Review follows the shared workflow
+(`.agents/standards/standards/pull-requests.md`). Project specifics:
 
-1. Push a `<type>/<kebab>` branch and open a PR against `main`.
-2. Review it with three independent reviewer subagents, each with its own
-   focus: correctness and security; these standards and the rewrite plan;
-   tests, CI and docs. Each returns `APPROVE` or `REQUEST_CHANGES` with
-   findings marked blocking or nit.
-3. Fix every blocking finding; fix nits when cheap, otherwise note why not.
-   Then re-review with all three.
-4. On consensus (all three `APPROVE`), record the review outcome in the PR
-   description, then push the branch to `main` as a fast-forward (rebase
-   onto `main` first if needed).
-5. If there is no consensus after three review rounds, stop and ask the
-   owner.
+- Standards bumps and small leftovers from the previous PR's review may ride
+  along in the current PR as their own commit, overriding "one topic per
+  branch". Name leftovers as such in the commit message and PR description.
+- After approval, push the branch to `main` as a fast-forward (rebase onto
+  `main` first if needed).
