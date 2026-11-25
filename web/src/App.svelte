@@ -1,12 +1,17 @@
 <script lang="ts">
-  import { pickLocale, translate } from './lib/i18n';
+  import LanguagePicker from './lib/components/LanguagePicker.svelte';
+  import { i18n, t } from './lib/i18n/locale.svelte';
 
-  const locale = pickLocale(navigator.languages);
-  document.documentElement.lang = locale;
-  document.title = translate(locale, 'appTitle');
+  $effect(() => {
+    document.documentElement.lang = i18n.locale;
+    document.title = t('appTitle');
+  });
 </script>
 
+<header>
+  <h1>{t('appTitle')}</h1>
+  <LanguagePicker />
+</header>
 <main>
-  <h1>{translate(locale, 'appTitle')}</h1>
-  <p>{translate(locale, 'comingSoon')}</p>
+  <p>{t('loading')}</p>
 </main>

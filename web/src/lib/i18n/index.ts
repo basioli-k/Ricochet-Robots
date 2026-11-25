@@ -3,8 +3,11 @@ import { en, hr, type MessageKey, type Messages } from './messages';
 export const locales = { en, hr } satisfies Record<string, Messages>;
 export type Locale = keyof typeof locales;
 
+/** Each language's own name, the same in every locale. */
+export const localeNames: Readonly<Record<Locale, string>> = { en: 'English', hr: 'Hrvatski' };
+
 // Own keys only: `in` would also accept inherited names such as `constructor`.
-const isLocale = (value: string): value is Locale => Object.hasOwn(locales, value);
+export const isLocale = (value: string): value is Locale => Object.hasOwn(locales, value);
 
 /**
  * Picks the first supported locale from the user's preferences (e.g.

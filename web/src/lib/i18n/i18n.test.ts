@@ -29,6 +29,6 @@ describe('messages', () => {
   });
 
   it('translates by locale', () => {
-    expect(translate('hr', 'comingSoon')).toBe(hr.comingSoon);
+    expect(translate('hr', 'play')).toBe(hr.play);
   });
 });
