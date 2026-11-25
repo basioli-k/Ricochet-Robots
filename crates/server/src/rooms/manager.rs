@@ -51,9 +51,11 @@ pub struct Creator<'a> {
 }
 
 /// Lobby view of a room.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export)]
 pub struct RoomSummary {
     pub id: String,
+    #[ts(type = "number")]
     pub members: usize,
 }
 

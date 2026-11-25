@@ -7,6 +7,7 @@ use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
+use ts_rs::TS;
 
 use crate::AppState;
 use crate::identity::{self, ApiError, Identity};
@@ -26,12 +27,14 @@ const LIMITED: ApiError = ApiError {
     code: "rate_limited",
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, TS)]
+#[ts(export)]
 pub struct StartGuest {
     pub nickname: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 pub struct Started {
     pub identity: Identity,
     /// The session's new CSRF token; the old one no longer works.

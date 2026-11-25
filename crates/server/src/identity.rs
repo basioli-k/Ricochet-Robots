@@ -5,6 +5,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
+use ts_rs::TS;
 
 const IDENTITY: &str = "identity";
 const CSRF: &str = "csrf";
@@ -13,8 +14,9 @@ const CSRF: &str = "csrf";
 pub const CSRF_HEADER: &str = "x-csrf-token";
 
 /// The signed-in player. Only guests exist until Google sign-in ships.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export)]
 pub enum Identity {
     Guest {
         /// The in-game `PlayerId`, random so it never collides with others.
@@ -55,9 +57,20 @@ impl ApiError {
     };
 }
 
+/// The JSON body of every refused HTTP request.
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+pub struct ErrorBody {
+    /// A stable code for the client to translate.
+    pub error: String,
+}
+
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (self.status, Json(serde_json::json!({ "error": self.code }))).into_response()
+        let body = ErrorBody {
+            error: self.code.into(),
+        };
+        (self.status, Json(body)).into_response()
     }
 }
 
@@ -124,7 +137,9 @@ pub async fn sign_in(session: &Session, identity: &Identity) -> Result<String, A
     Ok(token)
 }
 
-#[derive(Debug, Serialize)]
+/// The answer to `GET /api/session`.
+#[derive(Debug, Serialize, TS)]
+#[ts(export, rename = "Session")]
 pub struct SessionView {
     pub csrf: String,
     pub identity: Option<Identity>,

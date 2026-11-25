@@ -7,6 +7,7 @@ use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, StatusCode};
 use serde::Serialize;
 use tower_sessions::Session;
+use ts_rs::TS;
 
 use crate::AppState;
 use crate::identity::{self, ApiError};
@@ -14,7 +15,8 @@ use crate::rate_limit::client_key;
 use crate::rooms::manager::{CreateError, Creator, RoomSummary};
 
 /// The new room's ID, answered to `POST /api/rooms`.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export, rename = "RoomCreated")]
 pub struct Created {
     pub id: String,
 }
