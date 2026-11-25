@@ -19,6 +19,10 @@ pub struct Config {
     /// Room creations allowed per client within `room_create_window_secs`.
     pub room_creates: usize,
     pub room_create_window_secs: u64,
+    /// Chat messages per player per second.
+    pub chat_per_sec: usize,
+    /// Bids and moves per player per second.
+    pub actions_per_sec: usize,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -55,11 +59,25 @@ impl Config {
             },
             room_creates: limit(&var, "RR_ROOM_CREATES", 5)?,
             room_create_window_secs: limit(&var, "RR_ROOM_CREATE_WINDOW_SECS", 600)?,
+            chat_per_sec: limit(&var, "RR_CHAT_PER_SEC", 1)?,
+            actions_per_sec: limit(&var, "RR_ACTIONS_PER_SEC", 10)?,
         })
     }
 }
 
 impl Config {
+    /// The `Origin` browsers send from the public URL: its scheme and host
+    /// (with port), without any path.
+    #[must_use]
+    pub fn public_origin(&self) -> String {
+        let url = &self.public_base_url;
+        let host_start = url.find("://").map_or(0, |i| i + 3);
+        let end = url[host_start..]
+            .find('/')
+            .map_or(url.len(), |i| host_start + i);
+        url[..end].to_owned()
+    }
+
     /// Whether cookies must be Secure: the public URL is HTTPS.
     #[must_use]
     pub fn secure_cookies(&self) -> bool {
@@ -125,6 +143,25 @@ mod tests {
         assert_eq!((c.guest_starts, c.guest_window_secs), (5, 600));
         assert_eq!(c.rooms, RoomLimits::default());
         assert_eq!((c.room_creates, c.room_create_window_secs), (5, 600));
+        assert_eq!((c.chat_per_sec, c.actions_per_sec), (1, 10));
+    }
+
+    #[test]
+    fn the_public_origin_drops_any_path() {
+        let origin = |u: &str| {
+            config(&[("RR_PUBLIC_BASE_URL", u)])
+                .unwrap()
+                .public_origin()
+        };
+        assert_eq!(
+            origin("https://ricochet.example"),
+            "https://ricochet.example"
+        );
+        assert_eq!(origin("http://localhost:8080/"), "http://localhost:8080");
+        assert_eq!(
+            origin("HTTPS://x.example:8443/game/"),
+            "https://x.example:8443"
+        );
     }
 
     #[test]
@@ -140,6 +177,8 @@ mod tests {
             ("RR_ROOM_CAPACITY", "4"),
             ("RR_ROOM_CREATES", "3"),
             ("RR_ROOM_CREATE_WINDOW_SECS", "120"),
+            ("RR_CHAT_PER_SEC", "2"),
+            ("RR_ACTIONS_PER_SEC", "20"),
         ])
         .unwrap();
         assert_eq!(
@@ -151,6 +190,7 @@ mod tests {
             }
         );
         assert_eq!((c.room_creates, c.room_create_window_secs), (3, 120));
+        assert_eq!((c.chat_per_sec, c.actions_per_sec), (2, 20));
         assert_eq!((c.guest_starts, c.guest_window_secs), (7, 60));
         assert_eq!(c.bind, "0.0.0.0:9000".parse().unwrap());
         assert_eq!(c.database_url, "sqlite://other.db");
@@ -200,6 +240,8 @@ mod tests {
             "RR_ROOM_CAPACITY",
             "RR_ROOM_CREATES",
             "RR_ROOM_CREATE_WINDOW_SECS",
+            "RR_CHAT_PER_SEC",
+            "RR_ACTIONS_PER_SEC",
         ] {
             for bad in ["0", "-1", "five", ""] {
                 assert_eq!(
