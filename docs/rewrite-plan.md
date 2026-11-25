@@ -174,7 +174,7 @@ ricochet-robots/
   devices; a guest's lives in the client.
 - Sessions (at launch): `tower-sessions` cookie (HttpOnly, Secure over
   HTTPS, SameSite=Lax), CSRF token on every state-changing request
-  (`POST /guest` in 6b; choosing a username and logout after launch), session ID
+  (`POST /api/guest` in 6b; choosing a username and logout after launch), session ID
   cycled on guest start and later on sign-in (prevents session fixation),
   expired sessions purged by the store's expiry task.
 - Google sign-in (after launch; with guests, it replaces the PHP
@@ -200,12 +200,12 @@ ricochet-robots/
   - Configuration from the environment: `GOOGLE_CLIENT_ID`,
     `GOOGLE_CLIENT_SECRET` (a secret: never committed) and the public base
     URL for the redirect.
-- Guests: anyone can play without registering. `POST /guest` with a
+- Guests: anyone can play without registering. `POST /api/guest` with a
   nickname starts a guest session (same cookie, no password or email),
   which expires after 24 hours of inactivity. The session holds
   `Identity::Account(id)` or `Identity::Guest { id, nickname }`; the room
   only sees a `PlayerId`, a display name and an `is_guest` flag.
-  - `PlayerId` is a random UUID for both kinds, so a guest's ID can never
+  - `PlayerId` is 128 random bits for both kinds, so a guest's ID can never
     equal an account's.
   - Names: one rule for usernames and nicknames, ASCII `[A-Za-z0-9]{3,15}` (no
     Unicode, so no lookalike letters). Usernames are unique ignoring case
@@ -271,7 +271,7 @@ commits of at most ~200 lines of logic, each shipping its tests.
 | 4 | `feat/domain-board-validation` | `solve` and `BoardValidator`; test that the fixed board passes and that broken boards (centre not blocked, missing target, robot on a blocked cell or on a target, unreachable target) fail. |
 | 5 | `feat/storage` | Traits, in-memory impls, SQLx SQLite impl, migrations, repository tests run against both impls, including: a game with a guest stores the guest's score and is unranked; a one-player game is unranked; stats count ranked games only; ties count as wins. |
 | 6a | `feat/server-skeleton` | `AppState`, config from the environment, injected `Clock`, health endpoint, sessions in SQLite with the cookie policy; tests for config, the cookie attributes and sessions surviving a restart. |
-| 6b | `feat/server-guests` | Guest sessions and `RateLimiter`; tests: `RateLimiter` with a fake clock, the guest-start limit, name rule (length, non-ASCII rejected), clash with a username in any case, 24-hour expiry with a fake clock, CSRF on `POST /guest`. |
+| 6b | `feat/server-guests` | Guest sessions and `RateLimiter`; tests: `RateLimiter` with a fake clock, the guest-start limit, name rule (length, non-ASCII rejected), clash with a username in any case, 24-hour idle expiry (cookie `Max-Age`; the session store enforces it), CSRF on `POST /api/guest`. |
 | 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game` (each game gets a `Shuffle` backed by the injected `Rng`), room caps and idle closing; tests drive commands through a full round without a network, and cover a duplicate nickname in a room, the room-creation limit, the per-session/IP and global room caps, and idle closing with a fake clock. |
 | 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients, one of them a guest who finishes a round and is flagged `is_guest`, plus the chat and bid/move rate limits. |
 | 8 | `feat/web-auth-lobby` | Guest entry (nickname) and lobby pages; extend the i18n module (language preference saved in the browser). |
