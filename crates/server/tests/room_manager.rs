@@ -126,14 +126,18 @@ async fn room_creation_is_rate_limited_per_client() {
         Some(CreateError::TooManyRooms)
     );
     open.create(from("p3")).unwrap();
-    // Nor is one refused by the owner cap: p3 already has a room.
-    let one_each = sharing(
-        10,
-        1,
-        Arc::new(SlidingWindow::new(1, 60_000)),
-        clock.clone(),
-    );
+    // Nor is one refused by the owner cap, and the cap's error wins.
+    let limiter = Arc::new(SlidingWindow::new(2, 60_000));
+    let one_each = sharing(10, 1, limiter.clone(), clock.clone());
+    let roomy = sharing(10, 5, limiter, clock.clone());
     one_each.create(from("p3")).unwrap();
+    assert_eq!(
+        one_each.create(from("p3")).err(),
+        Some(CreateError::OwnerLimit)
+    );
+    roomy
+        .create(from("p5"))
+        .expect("the refusal left the second creation free");
     assert_eq!(
         one_each.create(from("p3")).err(),
         Some(CreateError::OwnerLimit),
