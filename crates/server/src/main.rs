@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .clone()
             .continuously_delete_expired(tokio::time::Duration::from_hours(1)),
     );
-    let https = config.public_base_url.starts_with("https://");
+    let https = config.secure_cookies();
     let state = AppState {
         players: store.clone(),
         games: store,

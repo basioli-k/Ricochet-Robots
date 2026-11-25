@@ -15,6 +15,8 @@ pub struct Config {
 pub enum ConfigError {
     #[error("{0} is not a valid socket address")]
     BadBind(String),
+    #[error("RR_PUBLIC_BASE_URL must start with http:// or https://, got {0}")]
+    BadPublicUrl(String),
 }
 
 impl Config {
@@ -22,7 +24,7 @@ impl Config {
     /// in tests). Every setting has a development default.
     ///
     /// # Errors
-    /// On an invalid bind address.
+    /// On an invalid bind address or public URL.
     pub fn from_vars(var: impl Fn(&str) -> Option<String>) -> Result<Self, ConfigError> {
         let bind_text = var("RR_BIND").unwrap_or_else(|| "127.0.0.1:8080".into());
         let bind = bind_text
@@ -31,10 +33,31 @@ impl Config {
         Ok(Self {
             bind,
             database_url: var("RR_DATABASE_URL").unwrap_or_else(|| "sqlite://ricochet.db".into()),
-            public_base_url: var("RR_PUBLIC_BASE_URL")
-                .unwrap_or_else(|| "http://localhost:8080".into()),
+            public_base_url: public_base_url(var("RR_PUBLIC_BASE_URL"))?,
         })
     }
+}
+
+impl Config {
+    /// Whether cookies must be Secure: the public URL is HTTPS.
+    #[must_use]
+    pub fn secure_cookies(&self) -> bool {
+        self.public_base_url.starts_with("https://")
+    }
+}
+
+/// Validates the public URL's scheme and lowercases it, so a typo can't
+/// silently drop the Secure flag in production.
+fn public_base_url(raw: Option<String>) -> Result<String, ConfigError> {
+    let raw = raw.unwrap_or_else(|| "http://localhost:8080".into());
+    let (scheme, rest) = raw
+        .split_once("://")
+        .ok_or_else(|| ConfigError::BadPublicUrl(raw.clone()))?;
+    let scheme = scheme.to_ascii_lowercase();
+    if !matches!(scheme.as_str(), "http" | "https") || rest.is_empty() {
+        return Err(ConfigError::BadPublicUrl(raw));
+    }
+    Ok(format!("{scheme}://{rest}"))
 }
 
 #[cfg(test)]
@@ -69,6 +92,26 @@ mod tests {
         assert_eq!(c.bind, "0.0.0.0:9000".parse().unwrap());
         assert_eq!(c.database_url, "sqlite://other.db");
         assert_eq!(c.public_base_url, "https://ricochet.example");
+    }
+
+    #[test]
+    fn cookies_are_secure_exactly_for_https_in_any_case() {
+        let url = |u: &str| config(&[("RR_PUBLIC_BASE_URL", u)]);
+        assert!(url("https://ricochet.example").unwrap().secure_cookies());
+        assert!(url("HTTPS://ricochet.example").unwrap().secure_cookies());
+        assert!(!url("http://localhost:8080").unwrap().secure_cookies());
+        assert!(!config(&[]).unwrap().secure_cookies());
+    }
+
+    #[test]
+    fn rejects_a_public_url_without_an_http_scheme() {
+        for bad in ["https:/x", "ricochet.example", "ftp://x", "https://"] {
+            assert_eq!(
+                config(&[("RR_PUBLIC_BASE_URL", bad)]),
+                Err(ConfigError::BadPublicUrl(bad.into())),
+                "{bad}"
+            );
+        }
     }
 
     #[test]

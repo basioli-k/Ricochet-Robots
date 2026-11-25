@@ -59,7 +59,14 @@ async fn the_cookie_is_http_only_lax_and_expires() {
 #[tokio::test]
 async fn the_cookie_is_secure_over_https() {
     let cookie = set_cookie(probe(sessions::layer(MemoryStore::default(), true))).await;
-    assert!(cookie.contains("Secure"), "{cookie}");
+    assert!(
+        cookie.starts_with(&format!("{}=", sessions::SECURE_COOKIE)),
+        "{cookie}"
+    );
+    for attribute in ["Secure", "Path=/"] {
+        assert!(cookie.contains(attribute), "missing {attribute}: {cookie}");
+    }
+    assert!(!cookie.contains("Domain"), "{cookie}");
 }
 
 /// A fresh directory removed on drop, even if the test panics.
