@@ -174,7 +174,7 @@ ricochet-robots/
   devices; a guest's lives in the client.
 - Sessions (at launch): `tower-sessions` cookie (HttpOnly, Secure over
   HTTPS, SameSite=Lax), CSRF token on every state-changing request
-  (`POST /api/guest` in 6b; choosing a username and logout after launch), session ID
+  (`POST /api/guest` in 6b, `POST /api/rooms` in 7b; choosing a username and logout after launch), session ID
   cycled on guest start and later on sign-in (prevents session fixation),
   expired sessions purged by the store's expiry task.
 - Google sign-in (after launch; with guests, it replaces the PHP
@@ -273,7 +273,8 @@ commits of at most ~200 lines of logic, each shipping its tests.
 | 6a | `feat/server-skeleton` | `AppState`, config from the environment, injected `Clock`, health endpoint, sessions in SQLite with the cookie policy; tests for config, the cookie attributes and sessions surviving a restart. |
 | 6b | `feat/server-guests` | Guest sessions and `RateLimiter`; tests: `RateLimiter` with a fake clock, the guest-start limit, name rule (length, non-ASCII rejected), clash with a username in any case, 24-hour idle expiry (cookie `Max-Age`; the session store enforces it), CSRF on `POST /api/guest`. |
 | 7a | `feat/server-rooms` | `RoomManager` and room actor over `domain::Game` (each game gets a `Shuffle` backed by the injected `Rng`), room caps and idle closing; tests drive commands through a full round without a network, and cover a duplicate nickname in a room, the room-creation limit, the per-session/IP and global room caps, and idle closing with a fake clock. |
-| 7b | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients, one of them a guest who finishes a round and is flagged `is_guest`, plus the chat and bid/move rate limits. |
+| 7b-1 | `feat/server-room-api` | Room limits from the environment, `POST /api/rooms` and `GET /api/rooms`, the server's `RoomManager` and idle-room sweep; tests for each error code and the per-player, per-client (IPv6 /64) and creation limits. |
+| 7b-2 | `feat/server-websocket` | WebSocket protocol, session-based identity, `ts-rs` export; tests with two WebSocket clients, one of them a guest who finishes a round and is flagged `is_guest`, plus the chat and bid/move rate limits. |
 | 8 | `feat/web-auth-lobby` | Guest entry (nickname) and lobby pages; extend the i18n module (language preference saved in the browser). |
 | 9 | `feat/web-game` | Board rendering, controls, animation, bidding UI, chat; Playwright e2e with two guests playing a round. |
 | 10 | `chore/remove-legacy` | Delete `legacy/`, first moving `legacy/tools/board_oracle.py` to `tools/` with a copy of the board literal it reads, so the fixed-board test values stay regenerable; Dockerfile and README with run and test commands. |

@@ -55,9 +55,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut every = tokio::time::interval(tokio::time::Duration::from_mins(1));
         loop {
             every.tick().await;
-            let closed = idle_rooms.close_idle().await;
-            if closed > 0 {
-                tracing::info!(closed, "closed idle rooms");
+            // Each sweep runs as its own task, so a panic in one is logged
+            // and the next minute's sweep still runs.
+            let sweep = idle_rooms.clone();
+            match tokio::spawn(async move { sweep.close_idle().await }).await {
+                Ok(0) => {}
+                Ok(closed) => tracing::info!(closed, "closed idle rooms"),
+                Err(e) => tracing::error!(error = %e, "closing idle rooms failed"),
             }
         }
     });

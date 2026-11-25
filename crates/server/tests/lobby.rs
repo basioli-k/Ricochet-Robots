@@ -68,23 +68,48 @@ async fn opening_a_room_needs_a_csrf_token_and_a_player() {
     let (pair, _, _) = guest(&app, "Visitor1").await;
     let response = create(&app, &pair, "wrong").await;
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(json_body(response).await["error"], "csrf_mismatch");
     assert_eq!(list(&app).await, json!([]));
 }
 
+fn at(ip: &str) -> SocketAddr {
+    SocketAddr::new(ip.parse().unwrap(), 4000)
+}
+
 #[tokio::test]
-async fn room_caps_and_the_creation_limit_have_their_own_codes() {
-    let app = app_with(rooms(10, 1, 100)).await;
-    let (pair, csrf, _) = guest(&app, "Visitor1").await;
+async fn a_player_is_capped_from_any_client() {
+    let (apps, _) = apps_at(rooms(10, 1, 100), &[at("198.51.100.1"), at("198.51.100.2")]).await;
+    let (pair, csrf, _) = guest(&apps[0], "Visitor1").await;
     assert_eq!(
-        create(&app, &pair, &csrf).await.status(),
+        create(&apps[0], &pair, &csrf).await.status(),
         StatusCode::CREATED
     );
-    let response = create(&app, &pair, &csrf).await;
+    let response = create(&apps[1], &pair, &csrf).await;
     assert_eq!(response.status(), StatusCode::CONFLICT);
     assert_eq!(json_body(response).await["error"], "room_limit");
+}
 
-    let at = |last: u8| SocketAddr::from(([198, 51, 100, last], 4000));
-    let (apps, _) = apps_at(rooms(1, 5, 100), &[at(1), at(2)]).await;
+#[tokio::test]
+async fn a_client_is_capped_across_sessions_and_its_ipv6_64() {
+    let (apps, _) = apps_at(
+        rooms(10, 1, 100),
+        &[at("2001:db8:1:2::1"), at("2001:db8:1:2::2")],
+    )
+    .await;
+    let (first, first_csrf, _) = guest(&apps[0], "Visitor1").await;
+    let (second, second_csrf, _) = guest(&apps[1], "Visitor2").await;
+    assert_eq!(
+        create(&apps[0], &first, &first_csrf).await.status(),
+        StatusCode::CREATED
+    );
+    let response = create(&apps[1], &second, &second_csrf).await;
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    assert_eq!(json_body(response).await["error"], "room_limit");
+}
+
+#[tokio::test]
+async fn the_server_wide_cap_has_its_own_code() {
+    let (apps, _) = apps_at(rooms(1, 5, 100), &[at("198.51.100.1"), at("198.51.100.2")]).await;
     let (a, a_csrf, _) = guest(&apps[0], "Visitor1").await;
     let (b, b_csrf, _) = guest(&apps[1], "Visitor2").await;
     assert_eq!(
@@ -94,29 +119,18 @@ async fn room_caps_and_the_creation_limit_have_their_own_codes() {
     let response = create(&apps[1], &b, &b_csrf).await;
     assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(json_body(response).await["error"], "too_many_rooms");
-
-    let app = app_with(rooms(10, 5, 1)).await;
-    let (pair, csrf, _) = guest(&app, "Visitor1").await;
-    assert_eq!(
-        create(&app, &pair, &csrf).await.status(),
-        StatusCode::CREATED
-    );
-    let response = create(&app, &pair, &csrf).await;
-    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
-    assert_eq!(json_body(response).await["error"], "rate_limited");
 }
 
 #[tokio::test]
-async fn a_new_session_from_the_same_client_shares_its_room_cap() {
-    let app = app_with(rooms(10, 1, 100)).await;
+async fn room_creation_is_rate_limited_per_client_across_sessions() {
+    let app = app_with(rooms(10, 5, 1)).await;
     let (first, first_csrf, _) = guest(&app, "Visitor1").await;
     let (second, second_csrf, _) = guest(&app, "Visitor2").await;
     assert_eq!(
         create(&app, &first, &first_csrf).await.status(),
         StatusCode::CREATED
     );
-    assert_eq!(
-        create(&app, &second, &second_csrf).await.status(),
-        StatusCode::CONFLICT
-    );
+    let response = create(&app, &second, &second_csrf).await;
+    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(json_body(response).await["error"], "rate_limited");
 }

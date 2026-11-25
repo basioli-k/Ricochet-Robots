@@ -13,6 +13,7 @@ use crate::identity::{self, ApiError};
 use crate::rate_limit::client_key;
 use crate::rooms::manager::{CreateError, Creator, RoomSummary};
 
+/// The new room's ID, answered to `POST /api/rooms`.
 #[derive(Debug, Serialize)]
 pub struct Created {
     pub id: String,
@@ -62,7 +63,7 @@ pub async fn create(
     Ok((StatusCode::CREATED, Json(Created { id })))
 }
 
-/// `GET /api/rooms`: open rooms with their member counts.
+/// `GET /api/rooms`: open rooms as `[{id, members}]`, sorted by ID.
 pub async fn list(State(state): State<AppState>) -> Json<Vec<RoomSummary>> {
     Json(state.rooms.list().await)
 }

@@ -1,48 +1,18 @@
-use std::sync::Arc;
+mod support;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
-use server::clock::FakeClock;
-use server::rate_limit::SlidingWindow;
-use server::rooms::actor::RandomShuffler;
-use server::rooms::manager::{RoomLimits, RoomManager};
-use server::{AppState, app, sessions};
-use storage::InMemoryStore;
+use support::{Limits, app_with};
 use tower::ServiceExt;
-
-fn state() -> AppState {
-    let store = Arc::new(InMemoryStore::new());
-    let clock = Arc::new(FakeClock::at(0));
-    AppState {
-        players: store.clone(),
-        games: store,
-        clock: clock.clone(),
-        guest_limiter: Arc::new(SlidingWindow::new(5, 1_000)),
-        rooms: Arc::new(RoomManager::new(
-            RoomLimits::default(),
-            || {
-                (
-                    domain::fixed_board::board(),
-                    domain::fixed_board::starting_robots(),
-                )
-            },
-            clock,
-            Arc::new(RandomShuffler),
-            Arc::new(SlidingWindow::new(5, 1_000)),
-        )),
-    }
-}
 
 #[tokio::test]
 async fn health_answers_ok() {
-    let response = app(
-        state(),
-        sessions::layer(tower_sessions::MemoryStore::default(), false),
-    )
-    .oneshot(Request::get("/health").body(Body::empty()).unwrap())
-    .await
-    .unwrap();
+    let response = app_with(Limits::default())
+        .await
+        .oneshot(Request::get("/health").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = response.into_body().collect().await.unwrap().to_bytes();
     assert_eq!(&body[..], b"ok");
@@ -50,12 +20,10 @@ async fn health_answers_ok() {
 
 #[tokio::test]
 async fn unknown_paths_are_not_found() {
-    let response = app(
-        state(),
-        sessions::layer(tower_sessions::MemoryStore::default(), false),
-    )
-    .oneshot(Request::get("/nope").body(Body::empty()).unwrap())
-    .await
-    .unwrap();
+    let response = app_with(Limits::default())
+        .await
+        .oneshot(Request::get("/nope").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
