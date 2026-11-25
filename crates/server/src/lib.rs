@@ -2,6 +2,8 @@
 
 pub mod clock;
 pub mod config;
+pub mod names;
+pub mod rate_limit;
 pub mod sessions;
 
 use std::sync::Arc;
