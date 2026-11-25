@@ -22,7 +22,7 @@ use crate::identity::{self, ApiError, Identity};
 use crate::protocol::{ClientMessage, ServerMessage, parse_player_id, player_id, room_error_code};
 use crate::rate_limit::{RateLimiter, client_key};
 use crate::rooms::actor::{CallError, RoomHandle};
-use crate::rooms::state::{Member, RoomEvent};
+use crate::rooms::state::{Member, RoomEvent, RoomView};
 
 /// Largest message a client may send; real ones are well under 1 KiB.
 const MAX_MESSAGE_BYTES: usize = 4 * 1024;
@@ -129,11 +129,10 @@ impl Link {
         self.send(Message::Text(text.into())).await
     }
 
-    async fn snapshot(&mut self, room: &RoomHandle, me: &Member) -> Result<(), ()> {
-        let view = room.view().await.map_err(|_| ())?;
+    async fn snapshot(&mut self, view: &RoomView, me: &Member) -> Result<(), ()> {
         let message = ServerMessage::Snapshot {
             you: player_id(me.id),
-            room: (&view).into(),
+            room: view.into(),
         };
         self.send_json(&message).await
     }
@@ -168,11 +167,11 @@ async fn play(mut link: Link, room: RoomHandle, me: Member, state: AppState) {
         let _ = link.send_json(&ServerMessage::error(call_code(e))).await;
         return;
     }
-    // Subscribe before taking the snapshot, so no event falls between the
-    // two (one may show in both); earlier ones, like our own join, are
-    // already in the snapshot.
-    let mut events = room.subscribe();
-    if link.snapshot(&room, &me).await.is_ok() {
+    // The snapshot and the event stream meet exactly: our own join and
+    // everything before it are in the snapshot, everything after streams.
+    if let Ok((view, mut events)) = room.watch().await
+        && link.snapshot(&view, &me).await.is_ok()
+    {
         converse(&mut link, &room, &me, &state, &mut events).await;
     }
     let _ = room.leave(me.id).await;

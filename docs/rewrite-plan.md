@@ -233,8 +233,9 @@ ricochet-robots/
   - client -> server: `Start`, `Bid { moves }`, `Move { robot, dir }`,
     `Concede`, `Chat { text }`, `Leave`; opening a room's socket joins it
   - server -> client: `Snapshot` (on connecting), `Joined`, `Left`,
-    `RoundStarted`, `BidPlaced { closes_at }`, `DemonstrationStarted { until }`,
-    `RobotMoved`, `RoundResolved`, `Chat`, `GameOver { leaders, scores }`,
+    `RoundStarted`, `BidPlaced { closes_at }`,
+    `DemonstrationStarted { until, robots }`, `RobotMoved { robots }`,
+    `RoundResolved { robots }`, `Chat`, `GameOver { leaders, scores }`,
     `Error { code }`
   - Player IDs travel as 32 hex digits; times as milliseconds since the epoch.
   - The socket upgrade requires our own `Origin` (browsers send cookies on

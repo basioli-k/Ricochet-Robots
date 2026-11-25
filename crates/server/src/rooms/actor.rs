@@ -53,14 +53,14 @@ enum Command {
     Chat(PlayerId, String),
     Tick,
     Members,
-    View,
+    Watch,
     CloseIfEmpty,
 }
 
 enum Reply {
     Events(Result<(), RoomError>),
     Members(Vec<Member>),
-    View(Box<RoomView>),
+    Watch(Box<RoomView>, broadcast::Receiver<RoomEvent>),
     Closed(bool),
 }
 
@@ -115,6 +115,13 @@ impl RoomHandle {
                 tokio::select! {
                     message = inbox.recv() => {
                         let Some((command, reply)) = message else { break };
+                        if matches!(command, Command::Watch) {
+                            // Both at once, between two commands: the view
+                            // shows everything before, the stream all after.
+                            let view = Box::new(room.view());
+                            let _ = reply.send(Reply::Watch(view, out.subscribe()));
+                            continue;
+                        }
                         if matches!(command, Command::CloseIfEmpty) {
                             let close = room.members().is_empty();
                             let _ = reply.send(Reply::Closed(close));
@@ -164,7 +171,7 @@ impl RoomHandle {
     async fn act(&self, command: Command) -> Result<(), CallError> {
         match self.call(command).await? {
             Reply::Events(result) => Ok(result?),
-            Reply::Members(_) | Reply::View(_) | Reply::Closed(_) => {
+            Reply::Members(_) | Reply::Watch(..) | Reply::Closed(_) => {
                 unreachable!("commands answer with events")
             }
         }
@@ -224,7 +231,7 @@ impl RoomHandle {
     pub async fn members(&self) -> Result<Vec<Member>, CallError> {
         match self.call(Command::Members).await? {
             Reply::Members(members) => Ok(members),
-            Reply::Events(_) | Reply::View(_) | Reply::Closed(_) => {
+            Reply::Events(_) | Reply::Watch(..) | Reply::Closed(_) => {
                 unreachable!("Members answers with members")
             }
         }
@@ -240,22 +247,23 @@ impl RoomHandle {
     pub async fn close_if_empty(&self) -> Result<bool, CallError> {
         match self.call(Command::CloseIfEmpty).await? {
             Reply::Closed(closed) => Ok(closed),
-            Reply::Events(_) | Reply::Members(_) | Reply::View(_) => {
+            Reply::Events(_) | Reply::Members(_) | Reply::Watch(..) => {
                 unreachable!("close answers with Closed")
             }
         }
     }
 
-    /// The whole room as it is now, for a member who just (re)connected.
-    /// Subscribe before asking, so no event falls between the two.
+    /// The whole room as it is now, and a stream of every event after it,
+    /// taken together inside the room's task: nothing falls between them
+    /// and nothing shows in both.
     ///
     /// # Errors
     /// `Closed`.
-    pub async fn view(&self) -> Result<RoomView, CallError> {
-        match self.call(Command::View).await? {
-            Reply::View(view) => Ok(*view),
+    pub async fn watch(&self) -> Result<(RoomView, broadcast::Receiver<RoomEvent>), CallError> {
+        match self.call(Command::Watch).await? {
+            Reply::Watch(view, events) => Ok((*view, events)),
             Reply::Events(_) | Reply::Members(_) | Reply::Closed(_) => {
-                unreachable!("View answers with the view")
+                unreachable!("Watch answers with the view and stream")
             }
         }
     }
@@ -289,8 +297,7 @@ fn apply(
         Command::Chat(player, text) => room.chat(player, &text),
         Command::Tick => Ok(room.tick(now)),
         Command::Members => return Applied::Reply(Reply::Members(room.members().to_vec())),
-        Command::View => return Applied::Reply(Reply::View(Box::new(room.view()))),
-        Command::CloseIfEmpty => unreachable!("handled by the task loop"),
+        Command::Watch | Command::CloseIfEmpty => unreachable!("handled by the task loop"),
     })
 }
 

@@ -216,7 +216,7 @@ async fn chat_and_the_view_go_through_the_handle() {
         room.chat(BOB, "hi".into()).await,
         Err(CallError::Room(RoomError::NotMember))
     );
-    let view = room.view().await.unwrap();
+    let (view, _) = room.watch().await.unwrap();
     assert_eq!(view.members, [member(1, "ana")]);
     assert!(view.game.is_none());
 }
@@ -273,5 +273,23 @@ async fn a_finished_game_is_recorded_once() {
     assert_eq!(
         recorded[0].finished_at,
         Timestamp(BIDDING_WINDOW_MS + RESULT_PAUSE_MS)
+    );
+}
+
+#[tokio::test]
+async fn watching_starts_exactly_after_the_view() {
+    let room = room(4, Arc::new(FakeClock::at(0)));
+    room.join(member(1, "ana")).await.unwrap();
+    room.chat(ANA, "before".into()).await.unwrap();
+    let (view, mut events) = room.watch().await.unwrap();
+    room.chat(ANA, "after".into()).await.unwrap();
+    assert_eq!(view.members, [member(1, "ana")]);
+    assert_eq!(
+        next(&mut events).await,
+        RoomEvent::Chat {
+            player: ANA,
+            text: "after".into()
+        },
+        "nothing from before the view is repeated"
     );
 }

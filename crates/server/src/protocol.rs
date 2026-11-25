@@ -390,11 +390,9 @@ pub enum ClientMessage {
     Leave,
 }
 
-/// What the server sends: a snapshot on connecting, then each change. An
-/// event can repeat what the snapshot already shows, so clients apply
-/// events idempotently (each carries the resulting state or keys on IDs).
-/// An `error` with code `lagged` means the socket fell behind and is
-/// closing: reconnect for a fresh snapshot.
+/// What the server sends: a snapshot on connecting, then each change after
+/// it, none repeated. An `error` with code `lagged` means the socket fell
+/// behind and is closing: reconnect for a fresh snapshot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[ts(export)]
