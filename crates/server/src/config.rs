@@ -9,6 +9,9 @@ pub struct Config {
     /// Where players reach the server, e.g. `https://ricochet.example`;
     /// cookies are marked Secure when it is HTTPS.
     pub public_base_url: String,
+    /// Guest starts allowed per client IP within `guest_window_secs`.
+    pub guest_starts: usize,
+    pub guest_window_secs: u64,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -17,6 +20,8 @@ pub enum ConfigError {
     BadBind(String),
     #[error("RR_PUBLIC_BASE_URL must start with http:// or https://, got {0}")]
     BadPublicUrl(String),
+    #[error("{0} must be a positive whole number, got {1}")]
+    BadLimit(&'static str, String),
 }
 
 impl Config {
@@ -34,6 +39,8 @@ impl Config {
             bind,
             database_url: var("RR_DATABASE_URL").unwrap_or_else(|| "sqlite://ricochet.db".into()),
             public_base_url: public_base_url(var("RR_PUBLIC_BASE_URL"))?,
+            guest_starts: limit(&var, "RR_GUEST_STARTS", 5)?,
+            guest_window_secs: limit(&var, "RR_GUEST_WINDOW_SECS", 600)?,
         })
     }
 }
@@ -46,6 +53,25 @@ impl Config {
         self.public_base_url
             .get(..8)
             .is_some_and(|scheme| scheme.eq_ignore_ascii_case("https://"))
+    }
+}
+
+/// A positive limit from `name`, or `default` when unset. Zero is refused:
+/// it would lock everyone out rather than disable the limit.
+fn limit<T>(
+    var: impl Fn(&str) -> Option<String>,
+    name: &'static str,
+    default: T,
+) -> Result<T, ConfigError>
+where
+    T: std::str::FromStr + PartialEq + From<u8>,
+{
+    let Some(raw) = var(name) else {
+        return Ok(default);
+    };
+    match raw.trim().parse::<T>() {
+        Ok(n) if n != T::from(0) => Ok(n),
+        _ => Err(ConfigError::BadLimit(name, raw)),
     }
 }
 
@@ -82,6 +108,7 @@ mod tests {
         assert_eq!(c.bind, "127.0.0.1:8080".parse().unwrap());
         assert_eq!(c.database_url, "sqlite://ricochet.db");
         assert_eq!(c.public_base_url, "http://localhost:8080");
+        assert_eq!((c.guest_starts, c.guest_window_secs), (5, 600));
     }
 
     #[test]
@@ -90,8 +117,11 @@ mod tests {
             ("RR_BIND", "0.0.0.0:9000"),
             ("RR_DATABASE_URL", "sqlite://other.db"),
             ("RR_PUBLIC_BASE_URL", "https://ricochet.example"),
+            ("RR_GUEST_STARTS", "7"),
+            ("RR_GUEST_WINDOW_SECS", " 60 "),
         ])
         .unwrap();
+        assert_eq!((c.guest_starts, c.guest_window_secs), (7, 60));
         assert_eq!(c.bind, "0.0.0.0:9000".parse().unwrap());
         assert_eq!(c.database_url, "sqlite://other.db");
         assert_eq!(c.public_base_url, "https://ricochet.example");
@@ -128,5 +158,18 @@ mod tests {
             config(&[("RR_BIND", "nope")]),
             Err(ConfigError::BadBind("nope".into()))
         );
+    }
+
+    #[test]
+    fn rejects_a_zero_or_malformed_limit() {
+        for name in ["RR_GUEST_STARTS", "RR_GUEST_WINDOW_SECS"] {
+            for bad in ["0", "-1", "five", ""] {
+                assert_eq!(
+                    config(&[(name, bad)]),
+                    Err(ConfigError::BadLimit(name, bad.into())),
+                    "{name}={bad}"
+                );
+            }
+        }
     }
 }

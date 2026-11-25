@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use server::clock::SystemClock;
 use server::config::Config;
-use server::guests;
 use server::rate_limit::SlidingWindow;
 use server::sessions;
 use server::{AppState, app};
@@ -42,8 +41,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         games: store,
         clock: Arc::new(SystemClock::default()),
         guest_limiter: Arc::new(SlidingWindow::new(
-            guests::GUEST_STARTS,
-            guests::GUEST_WINDOW_MS,
+            config.guest_starts,
+            config.guest_window_secs.saturating_mul(1000),
         )),
     };
     let listener = tokio::net::TcpListener::bind(config.bind).await?;

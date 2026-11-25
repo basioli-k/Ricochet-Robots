@@ -12,10 +12,6 @@ use crate::AppState;
 use crate::identity::{self, ApiError, Identity};
 use crate::names::PlayerName;
 
-/// Guest starts allowed per client IP within [`GUEST_WINDOW_MS`].
-pub const GUEST_STARTS: usize = 5;
-pub const GUEST_WINDOW_MS: u64 = 10 * 60 * 1000;
-
 const INVALID: ApiError = ApiError {
     status: StatusCode::BAD_REQUEST,
     code: "nickname_invalid",
@@ -41,9 +37,10 @@ pub struct Started {
     pub csrf: String,
 }
 
-/// `POST /api/guest`. Checks run cheapest-first: CSRF, rate limit, name
-/// rule, then whether an account already has the name (ignoring case), so
-/// a guest can't pose as that account.
+/// `POST /api/guest`. Checks run cheapest-first: CSRF, the per-IP
+/// `guest_limiter` (set by `RR_GUEST_STARTS` and `RR_GUEST_WINDOW_SECS`),
+/// the name rule, then whether an account already has the name (ignoring
+/// case), so a guest can't pose as that account.
 ///
 /// # Errors
 /// `csrf_mismatch`, `rate_limited`, `nickname_invalid` or `nickname_taken`.
