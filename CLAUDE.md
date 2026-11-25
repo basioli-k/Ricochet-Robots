@@ -36,7 +36,7 @@ Run before every commit (CI runs the same):
   commit it with the fix: proptest replays those cases first. Delete ones
   produced by deliberate mutation checks.
 - Web, from `web/`: `npm run lint`, `npm run typecheck`, `npm test`,
-  `npm run build`
+  `npm run build`, and `npm run e2e` for UI changes
 - Tools: `python3 -I -m unittest discover -s tools -p 'test_*.py'`
 
 ## Dependencies

@@ -34,12 +34,17 @@ Needs Node.js 22.13+ or 24+.
 ```bash
 cd web
 npm ci --ignore-scripts   # as in CI
-npm run dev         # local dev server
+npm run dev         # local dev server (proxies /api to the Rust server on :8080)
 npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run e2e         # Playwright, two guests playing a round (about a minute)
 ```
+
+`npm run e2e` starts the Rust server and the dev server itself (or reuses
+running ones locally) and needs a Chromium for the pinned
+`@playwright/test`: `npx playwright install chromium` once.
 
 ### Adding or updating dependencies
 
