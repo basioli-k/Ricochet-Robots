@@ -2,6 +2,7 @@
 
 pub mod clock;
 pub mod config;
+pub mod game_socket;
 pub mod guests;
 pub mod identity;
 pub mod lobby;
@@ -33,6 +34,12 @@ pub struct AppState {
     /// Limits guest starts per client IP.
     pub guest_limiter: Arc<dyn RateLimiter>,
     pub rooms: Arc<RoomManager>,
+    /// Chat messages per player, and bids and moves per player.
+    pub chat_limiter: Arc<dyn RateLimiter>,
+    pub action_limiter: Arc<dyn RateLimiter>,
+    /// The only `Origin` allowed to open a game socket.
+    pub public_origin: String,
+    pub heartbeat: game_socket::Heartbeat,
 }
 
 impl std::fmt::Debug for AppState {
@@ -49,6 +56,7 @@ pub fn app<S: SessionStore + Clone>(state: AppState, sessions: SessionManagerLay
         .route("/api/session", get(identity::get_session))
         .route("/api/guest", post(guests::start))
         .route("/api/rooms", get(lobby::list).post(lobby::create))
+        .route("/api/rooms/{id}/ws", get(game_socket::connect))
         .with_state(state)
         .layer(sessions)
 }

@@ -4,6 +4,7 @@
 
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::Router;
 use axum::body::Body;
@@ -13,6 +14,7 @@ use domain::{PlayerId, Timestamp, fixed_board};
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use server::clock::FakeClock;
+use server::game_socket::Heartbeat;
 use server::identity::CSRF_HEADER;
 use server::rate_limit::SlidingWindow;
 use server::rooms::actor::RandomShuffler;
@@ -23,6 +25,8 @@ use tower::ServiceExt;
 use tower_sessions::MemoryStore;
 
 pub const CLIENT: [u8; 4] = [203, 0, 113, 7];
+/// The test app's public origin.
+pub const ORIGIN: &str = "http://localhost:8080";
 
 /// Limits for a test app; every window is one minute.
 #[derive(Debug, Clone, Copy)]
@@ -30,6 +34,9 @@ pub struct Limits {
     pub guest_starts: usize,
     pub rooms: RoomLimits,
     pub room_creates: usize,
+    /// Per second, per player.
+    pub chats: usize,
+    pub actions: usize,
 }
 
 impl Default for Limits {
@@ -38,6 +45,8 @@ impl Default for Limits {
             guest_starts: 100,
             rooms: RoomLimits::default(),
             room_creates: 100,
+            chats: 100,
+            actions: 100,
         }
     }
 }
@@ -69,6 +78,13 @@ pub async fn apps_at(limits: Limits, clients: &[SocketAddr]) -> (Vec<Router>, Ar
         clock: clock.clone(),
         guest_limiter: Arc::new(SlidingWindow::new(limits.guest_starts, 60_000)),
         rooms: Arc::new(rooms),
+        chat_limiter: Arc::new(SlidingWindow::new(limits.chats, 1_000)),
+        action_limiter: Arc::new(SlidingWindow::new(limits.actions, 1_000)),
+        public_origin: ORIGIN.into(),
+        heartbeat: Heartbeat {
+            every: Duration::from_millis(100),
+            timeout: Duration::from_secs(1),
+        },
     };
     let sessions = MemoryStore::default();
     let apps = clients
@@ -146,4 +162,16 @@ pub async fn guest(app: &Router, nickname: &str) -> (String, String, String) {
         body["csrf"].as_str().unwrap().to_owned(),
         body["identity"]["id"].as_str().unwrap().to_owned(),
     )
+}
+
+/// POST /api/rooms as a signed-in player; returns the room ID.
+pub async fn create_room(app: &Router, cookie_pair: &str, csrf: &str) -> String {
+    let request = Request::post("/api/rooms")
+        .header(header::COOKIE, cookie_pair)
+        .header(CSRF_HEADER, csrf)
+        .body(Body::empty())
+        .unwrap();
+    let response = app.clone().oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    json_body(response).await["id"].as_str().unwrap().to_owned()
 }
