@@ -5,11 +5,11 @@ project only adopts versions that have been public for a while. Checks
 Cargo.lock (crates.io) and web/package-lock.json (npm registry). A
 dependency from anywhere else (git, a tarball URL) has no publish time to
 check, so it fails too; local path and workspace packages are skipped (so
-third-party code vendored as a path dependency must go through review), as
-are npm packages shipped inside another package's tarball (bundled, with no
-download URL of their own), whose parent is checked. Anything npm downloads
-has a resolved URL and is checked, including the project's own
-bundleDependencies and their dependencies.
+third-party code vendored as a path dependency must go through review).
+Every other npm entry must have a registry URL for its own name and version.
+Entries without one, including packages bundled inside another package's
+tarball, fail as unverifiable: the lockfile's bundle flags can't be trusted
+to prove an entry was not downloaded. Allow-list a vetted bundle if needed.
 
 Exceptions, each with a reason, go in .dependency-age-allow:
     crates:name@version  # why
@@ -102,8 +102,6 @@ def npm_packages(lock_text):
     for path, info in json.loads(lock_text).get("packages", {}).items():
         if not path or info.get("link"):
             continue  # the root package or a workspace link
-        if info.get("inBundle") and not info.get("resolved"):
-            continue  # shipped inside its parent's tarball, which is checked
         name = info.get("name") or path.rsplit("node_modules/", 1)[-1]
         key = (name, info.get("version", "?"))
         resolved = info.get("resolved", "")

@@ -67,6 +67,7 @@ class NpmPackages(unittest.TestCase):
                 },
                 "node_modules/linked": {"link": True, "resolved": "packages/linked"},
                 "node_modules/parent/node_modules/bundled": {"version": "2.0.0", "inBundle": True},
+                "node_modules/fake-bundle": {"version": "5.0.0", "inBundle": True},
                 "node_modules/own-bundle": {
                     "version": "3.0.0",
                     "inBundle": True,
@@ -89,16 +90,22 @@ class NpmPackages(unittest.TestCase):
         }
     )
 
-    def test_splits_registry_from_unverifiable_and_skips_root_links_and_bundles(self):
+    def test_splits_registry_from_unverifiable_and_skips_root_and_links(self):
         registry, other = check.npm_packages(self.LOCK)
-        # The project's own bundled dependencies (and theirs) are still
-        # downloaded, so checked; only tarball-shipped entries are skipped.
         self.assertEqual(
             registry, [("@scope/pkg", "1.2.3"), ("own-bundle", "3.0.0"), ("own-dep", "4.0.0")]
         )
-        # A tarball for another package or version can't vouch for this entry.
+        # A tarball for another package or version can't vouch for this entry,
+        # and a bundle flag without a registry URL proves nothing, at any depth.
         self.assertEqual(
-            other, [("from-git", "0.1.0"), ("lodash", "4.17.21"), ("other-registry", "1.0.0")]
+            other,
+            [
+                ("bundled", "2.0.0"),
+                ("fake-bundle", "5.0.0"),
+                ("from-git", "0.1.0"),
+                ("lodash", "4.17.21"),
+                ("other-registry", "1.0.0"),
+            ],
         )
 
 
