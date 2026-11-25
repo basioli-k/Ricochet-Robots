@@ -17,7 +17,8 @@ pub const EMPTY_CLOSE_MS: u64 = 10 * 60_000;
 pub struct RoomLimits {
     /// Open rooms in total.
     pub global: usize,
-    /// Open rooms per owner (a session or client address).
+    /// Open rooms per owner; a room counts against each of its owners
+    /// (e.g. the creating player and their client address).
     pub per_owner: usize,
     /// Members per room.
     pub capacity: usize,
@@ -48,7 +49,7 @@ pub struct RoomSummary {
 
 struct Entry {
     handle: RoomHandle,
-    owner: String,
+    owners: Vec<String>,
     empty_since: Option<Timestamp>,
 }
 
@@ -94,17 +95,25 @@ impl RoomManager {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    /// Opens a room for `owner`; must run inside a Tokio runtime.
+    /// Opens a room counted against each of `owners`; must run inside a
+    /// Tokio runtime.
     ///
     /// # Errors
-    /// `TooManyRooms` at the global cap, `OwnerLimit` at the owner's cap.
-    pub fn create(&self, owner: &str) -> Result<(String, RoomHandle), CreateError> {
+    /// `TooManyRooms` at the global cap, `OwnerLimit` if any owner is at
+    /// their cap.
+    pub fn create(&self, owners: &[&str]) -> Result<(String, RoomHandle), CreateError> {
         let mut rooms = self.lock();
         if rooms.len() >= self.limits.global {
             return Err(CreateError::TooManyRooms);
         }
-        if rooms.values().filter(|e| e.owner == owner).count() >= self.limits.per_owner {
-            return Err(CreateError::OwnerLimit);
+        for owner in owners {
+            let open = rooms
+                .values()
+                .filter(|e| e.owners.iter().any(|o| o == owner))
+                .count();
+            if open >= self.limits.per_owner {
+                return Err(CreateError::OwnerLimit);
+            }
         }
         let (board, robots) = (self.setup)();
         let handle = RoomHandle::spawn(
@@ -119,7 +128,7 @@ impl RoomManager {
             id.clone(),
             Entry {
                 handle: handle.clone(),
-                owner: owner.to_owned(),
+                owners: owners.iter().map(|&o| o.to_owned()).collect(),
                 empty_since: None,
             },
         );
