@@ -6,6 +6,7 @@ pub mod guests;
 pub mod identity;
 pub mod names;
 pub mod rate_limit;
+pub mod rooms;
 pub mod sessions;
 
 use std::sync::Arc;

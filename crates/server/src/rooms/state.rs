@@ -1,0 +1,305 @@
+//! One room's rules: who is in it and its game, as a synchronous state
+//! machine. The async actor around it only forwards commands and events, so
+//! everything here is tested without a runtime. Time arrives as `now`.
+
+use domain::{
+    Board, Direction, Game, GameError, Phase, PlayerId, RobotColor, Robots, Shuffle, Target,
+    Timestamp,
+};
+
+/// How long bidding stays open after the first bid.
+pub const BIDDING_WINDOW_MS: u64 = 60_000;
+/// How long a demonstrator may take before conceding automatically.
+pub const DEMONSTRATION_MS: u64 = 60_000;
+/// A round nobody bids on is abandoned after this long.
+pub const IDLE_ROUND_MS: u64 = 3 * 60_000;
+/// Pause after a round ends so players see the result before the next.
+pub const RESULT_PAUSE_MS: u64 = 5_000;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Member {
+    pub id: PlayerId,
+    pub name: String,
+    pub is_guest: bool,
+}
+
+/// What changed, for broadcasting to the room's members.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RoomEvent {
+    Joined(Member),
+    Left(PlayerId),
+    RoundStarted {
+        target: Target,
+        robots: Robots,
+    },
+    BidPlaced {
+        player: PlayerId,
+        moves: u8,
+        closes_at: Timestamp,
+    },
+    Demonstrating {
+        player: PlayerId,
+        bid: u8,
+    },
+    RobotMoved {
+        robot: RobotColor,
+        robots: Robots,
+    },
+    RoundEnded {
+        phase: Phase,
+    },
+    GameOver {
+        leaders: Vec<PlayerId>,
+    },
+}
+
+/// Why a command was refused; the room is unchanged when this is returned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RoomError {
+    Full,
+    NameTaken,
+    NotMember,
+    AlreadyStarted,
+    NotStarted,
+    Game(GameError),
+}
+
+impl From<GameError> for RoomError {
+    fn from(e: GameError) -> Self {
+        Self::Game(e)
+    }
+}
+
+/// When the current round entered its phase, to time out each stage.
+#[derive(Debug, Clone, Copy)]
+struct Since {
+    phase: Phase,
+    at: Timestamp,
+}
+
+#[derive(Debug)]
+pub struct RoomState {
+    capacity: usize,
+    members: Vec<Member>,
+    setup: Option<(Board, Robots)>,
+    game: Option<Game>,
+    since: Option<Since>,
+}
+
+type Events = Result<Vec<RoomEvent>, RoomError>;
+
+impl RoomState {
+    /// A room for up to `capacity` members that will play `board` from
+    /// `robots` once started.
+    #[must_use]
+    pub fn new(board: Board, robots: Robots, capacity: usize) -> Self {
+        Self {
+            capacity,
+            members: Vec::new(),
+            setup: Some((board, robots)),
+            game: None,
+            since: None,
+        }
+    }
+
+    #[must_use]
+    pub fn members(&self) -> &[Member] {
+        &self.members
+    }
+
+    #[must_use]
+    pub const fn game(&self) -> Option<&Game> {
+        self.game.as_ref()
+    }
+
+    /// Adds a member; names are unique in the room ignoring case.
+    ///
+    /// # Errors
+    /// `Full` or `NameTaken`. Rejoining with the same id is a no-op.
+    pub fn join(&mut self, member: Member) -> Events {
+        if self.members.iter().any(|m| m.id == member.id) {
+            return Ok(Vec::new());
+        }
+        if self.members.len() >= self.capacity {
+            return Err(RoomError::Full);
+        }
+        if self
+            .members
+            .iter()
+            .any(|m| m.name.eq_ignore_ascii_case(&member.name))
+        {
+            return Err(RoomError::NameTaken);
+        }
+        self.members.push(member.clone());
+        Ok(vec![RoomEvent::Joined(member)])
+    }
+
+    /// Removes a member. A demonstrator who leaves concedes.
+    ///
+    /// # Errors
+    /// `NotMember`.
+    pub fn leave(&mut self, id: PlayerId, now: Timestamp) -> Events {
+        let index = self
+            .members
+            .iter()
+            .position(|m| m.id == id)
+            .ok_or(RoomError::NotMember)?;
+        self.members.remove(index);
+        let mut events = vec![RoomEvent::Left(id)];
+        if let Some(game) = &mut self.game
+            && matches!(game.round().phase(), Phase::Demonstrating { player, .. } if player == id)
+        {
+            game.concede(id)?;
+            events.extend(self.after_change(now));
+        }
+        Ok(events)
+    }
+
+    /// Starts the game; any member may.
+    ///
+    /// # Errors
+    /// `NotMember` or `AlreadyStarted`.
+    pub fn start(&mut self, by: PlayerId, shuffle: &mut impl Shuffle, now: Timestamp) -> Events {
+        self.require_member(by)?;
+        let (board, robots) = self.setup.take().ok_or(RoomError::AlreadyStarted)?;
+        let Some(game) = Game::new(board, robots, BIDDING_WINDOW_MS, shuffle) else {
+            return Ok(vec![RoomEvent::GameOver {
+                leaders: Vec::new(),
+            }]);
+        };
+        let event = round_started(&game);
+        self.game = Some(game);
+        self.mark(now);
+        Ok(vec![event])
+    }
+
+    /// # Errors
+    /// `NotMember`, `NotStarted`, or the game's refusal.
+    pub fn bid(&mut self, player: PlayerId, moves: u8, now: Timestamp) -> Events {
+        self.require_member(player)?;
+        let game = self.game.as_mut().ok_or(RoomError::NotStarted)?;
+        game.bid(player, moves, now)?;
+        let closes_at = game.round().bidding_closes_at().unwrap_or(now);
+        Ok(vec![RoomEvent::BidPlaced {
+            player,
+            moves,
+            closes_at,
+        }])
+    }
+
+    /// # Errors
+    /// `NotMember`, `NotStarted`, or the game's refusal.
+    pub fn move_robot(
+        &mut self,
+        player: PlayerId,
+        robot: RobotColor,
+        dir: Direction,
+        now: Timestamp,
+    ) -> Events {
+        self.require_member(player)?;
+        let game = self.game.as_mut().ok_or(RoomError::NotStarted)?;
+        game.move_robot(player, robot, dir)?;
+        let mut events = vec![RoomEvent::RobotMoved {
+            robot,
+            robots: *game.round().robots(),
+        }];
+        events.extend(self.after_change(now));
+        Ok(events)
+    }
+
+    /// # Errors
+    /// `NotMember`, `NotStarted`, or the game's refusal.
+    pub fn concede(&mut self, player: PlayerId, now: Timestamp) -> Events {
+        self.require_member(player)?;
+        self.game
+            .as_mut()
+            .ok_or(RoomError::NotStarted)?
+            .concede(player)?;
+        Ok(self.after_change(now))
+    }
+
+    /// Advances anything that is due by `now`: closing bidding, timing out
+    /// a demonstrator, abandoning an unbid round, or dealing the next round
+    /// after the result pause.
+    pub fn tick(&mut self, now: Timestamp) -> Vec<RoomEvent> {
+        let (Some(game), Some(since)) = (self.game.as_mut(), self.since) else {
+            return Vec::new();
+        };
+        if game.is_over() {
+            return Vec::new();
+        }
+        let elapsed = now.0.saturating_sub(since.at.0);
+        match game.round().phase() {
+            Phase::Bidding => {
+                let due = game.round().bidding_closes_at();
+                if due.is_some_and(|t| now >= t) {
+                    let _ = game.close_bidding(now);
+                    return self.after_change(now);
+                }
+                if due.is_none() && elapsed >= IDLE_ROUND_MS {
+                    let _ = game.abandon_round();
+                    return self.after_change(now);
+                }
+                Vec::new()
+            }
+            Phase::Demonstrating { player, .. } if elapsed >= DEMONSTRATION_MS => {
+                let _ = game.concede(player);
+                self.after_change(now)
+            }
+            Phase::Solved { .. } | Phase::Unsolved if elapsed >= RESULT_PAUSE_MS => {
+                let _ = game.next_round();
+                if game.is_over() {
+                    vec![RoomEvent::GameOver {
+                        leaders: game.leaders(),
+                    }]
+                } else {
+                    let event = round_started(game);
+                    self.mark(now);
+                    vec![event]
+                }
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// Events for a phase change, restarting the phase clock if it changed.
+    fn after_change(&mut self, now: Timestamp) -> Vec<RoomEvent> {
+        let Some(game) = &self.game else {
+            return Vec::new();
+        };
+        let phase = game.round().phase();
+        if self.since.is_some_and(|s| s.phase == phase) {
+            return Vec::new();
+        }
+        self.mark(now);
+        match phase {
+            Phase::Demonstrating { player, bid, .. } => {
+                vec![RoomEvent::Demonstrating { player, bid }]
+            }
+            Phase::Solved { .. } | Phase::Unsolved => vec![RoomEvent::RoundEnded { phase }],
+            Phase::Bidding => Vec::new(),
+        }
+    }
+
+    fn mark(&mut self, now: Timestamp) {
+        self.since = self.game.as_ref().map(|g| Since {
+            phase: g.round().phase(),
+            at: now,
+        });
+    }
+
+    fn require_member(&self, id: PlayerId) -> Result<(), RoomError> {
+        self.members
+            .iter()
+            .any(|m| m.id == id)
+            .then_some(())
+            .ok_or(RoomError::NotMember)
+    }
+}
+
+fn round_started(game: &Game) -> RoomEvent {
+    RoomEvent::RoundStarted {
+        target: game.round().target(),
+        robots: *game.round().robots(),
+    }
+}
