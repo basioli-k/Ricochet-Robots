@@ -70,7 +70,7 @@ impl From<GameError> for RoomError {
     }
 }
 
-/// When the current round entered its phase, to time out each stage.
+/// When the current round entered its stage (see [`stage`]), to time it out.
 #[derive(Debug, Clone, Copy)]
 struct Since {
     phase: Phase,
@@ -263,12 +263,20 @@ impl RoomState {
     }
 
     /// Events for a phase change, restarting the phase clock if it changed.
+    /// A bidder who has left can't demonstrate, so their turn is skipped.
     fn after_change(&mut self, now: Timestamp) -> Vec<RoomEvent> {
-        let Some(game) = &self.game else {
+        let Some(game) = &mut self.game else {
             return Vec::new();
         };
+        while let Phase::Demonstrating { player, .. } = game.round().phase()
+            && !self.members.iter().any(|m| m.id == player)
+        {
+            if game.concede(player).is_err() {
+                break;
+            }
+        }
         let phase = game.round().phase();
-        if self.since.is_some_and(|s| s.phase == phase) {
+        if self.since.is_some_and(|s| s.phase == stage(phase)) {
             return Vec::new();
         }
         self.mark(now);
@@ -283,7 +291,7 @@ impl RoomState {
 
     fn mark(&mut self, now: Timestamp) {
         self.since = self.game.as_ref().map(|g| Since {
-            phase: g.round().phase(),
+            phase: stage(g.round().phase()),
             at: now,
         });
     }
@@ -294,6 +302,19 @@ impl RoomState {
             .any(|m| m.id == id)
             .then_some(())
             .ok_or(RoomError::NotMember)
+    }
+}
+
+/// The phase without its move count, so a demonstrator's moves don't
+/// restart their clock.
+const fn stage(phase: Phase) -> Phase {
+    match phase {
+        Phase::Demonstrating { player, bid, .. } => Phase::Demonstrating {
+            player,
+            bid,
+            moves_made: 0,
+        },
+        other => other,
     }
 }
 

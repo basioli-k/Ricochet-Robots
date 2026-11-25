@@ -176,6 +176,24 @@ fn a_slow_demonstrator_concedes_and_the_round_can_end_unsolved() {
 }
 
 #[test]
+fn moving_does_not_restart_the_demonstration_clock() {
+    let mut room = started();
+    room.bid(ANA, 2, t(0)).unwrap();
+    let close = BIDDING_WINDOW_MS;
+    room.tick(t(close));
+    let events = room
+        .move_robot(ANA, RobotColor::Red, Direction::Down, t(close + 50_000))
+        .unwrap();
+    assert_eq!(events.len(), 1, "only the move: {events:?}");
+    assert_eq!(
+        room.tick(t(close + DEMONSTRATION_MS)),
+        [RoomEvent::RoundEnded {
+            phase: Phase::Unsolved
+        }]
+    );
+}
+
+#[test]
 fn an_unbid_round_is_abandoned_after_the_idle_timeout() {
     let mut room = started();
     assert_eq!(room.tick(t(IDLE_ROUND_MS - 1)), []);
@@ -209,6 +227,21 @@ fn a_leaving_demonstrator_concedes() {
                 phase: Phase::Unsolved
             }
         ]
+    );
+}
+
+#[test]
+fn a_bidder_who_left_is_skipped_when_bidding_closes() {
+    let mut room = started();
+    room.bid(BOB, 1, t(0)).unwrap();
+    room.bid(ANA, 2, t(10)).unwrap();
+    room.leave(BOB, t(20)).unwrap();
+    assert_eq!(
+        room.tick(t(BIDDING_WINDOW_MS)),
+        [RoomEvent::Demonstrating {
+            player: ANA,
+            bid: 2
+        }]
     );
 }
 
