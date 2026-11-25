@@ -3,7 +3,7 @@
 //! everything here is tested without a runtime. Time arrives as `now`.
 
 use domain::{
-    Board, Direction, Game, GameError, Phase, PlayerId, RobotColor, Robots, Shuffle, Target,
+    Bid, Board, Direction, Game, GameError, Phase, PlayerId, RobotColor, Robots, Shuffle, Target,
     Timestamp,
 };
 
@@ -15,6 +15,8 @@ pub const DEMONSTRATION_MS: u64 = 60_000;
 pub const IDLE_ROUND_MS: u64 = 3 * 60_000;
 /// Pause after a round ends so players see the result before the next.
 pub const RESULT_PAUSE_MS: u64 = 5_000;
+/// Longest chat message, in characters, after trimming.
+pub const CHAT_MAX_CHARS: usize = 200;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Member {
@@ -40,6 +42,8 @@ pub enum RoomEvent {
     Demonstrating {
         player: PlayerId,
         bid: u8,
+        /// When they concede automatically.
+        until: Timestamp,
     },
     RobotMoved {
         robot: RobotColor,
@@ -50,7 +54,34 @@ pub enum RoomEvent {
     },
     GameOver {
         leaders: Vec<PlayerId>,
+        /// Tokens won, for every player who won any.
+        scores: Vec<(PlayerId, u32)>,
     },
+    Chat {
+        player: PlayerId,
+        text: String,
+    },
+}
+
+/// Everything a member needs to draw the room, e.g. after (re)connecting.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoomView {
+    pub members: Vec<Member>,
+    pub board: Board,
+    pub game: Option<GameView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GameView {
+    pub target: Target,
+    pub robots: Robots,
+    pub phase: Phase,
+    pub bids: Vec<Bid>,
+    /// When the current stage ends on its own, if it does.
+    pub deadline: Option<Timestamp>,
+    pub scores: Vec<(PlayerId, u32)>,
+    pub targets_left: usize,
+    pub over: bool,
 }
 
 /// Why a command was refused; the room is unchanged when this is returned.
@@ -61,6 +92,8 @@ pub enum RoomError {
     NotMember,
     AlreadyStarted,
     NotStarted,
+    /// Empty, too long, or containing control characters.
+    BadChat,
     Game(GameError),
 }
 
@@ -81,6 +114,7 @@ struct Since {
 #[derive(Debug)]
 pub struct RoomState {
     capacity: usize,
+    board: Board,
     members: Vec<Member>,
     setup: Option<(Board, Robots)>,
     game: Option<Game>,
@@ -96,6 +130,7 @@ impl RoomState {
     pub fn new(board: Board, robots: Robots, capacity: usize) -> Self {
         Self {
             capacity,
+            board: board.clone(),
             members: Vec::new(),
             setup: Some((board, robots)),
             game: None,
@@ -111,6 +146,57 @@ impl RoomState {
     #[must_use]
     pub const fn game(&self) -> Option<&Game> {
         self.game.as_ref()
+    }
+
+    #[must_use]
+    pub fn view(&self) -> RoomView {
+        RoomView {
+            members: self.members.clone(),
+            board: self.board.clone(),
+            game: self.game.as_ref().map(|game| GameView {
+                target: game.round().target(),
+                robots: *game.round().robots(),
+                phase: game.round().phase(),
+                bids: game.round().bids(),
+                deadline: self.deadline(),
+                scores: scores(game),
+                targets_left: game.targets_left(),
+                over: game.is_over(),
+            }),
+        }
+    }
+
+    /// When the current stage ends on its own: bidding closing, a
+    /// demonstrator timing out, or the next round after the result pause.
+    fn deadline(&self) -> Option<Timestamp> {
+        let game = self.game.as_ref().filter(|g| !g.is_over())?;
+        let since = self.since?;
+        let after = |ms: u64| Some(Timestamp(since.at.0.saturating_add(ms)));
+        match game.round().phase() {
+            Phase::Bidding => game.round().bidding_closes_at(),
+            Phase::Demonstrating { .. } => after(DEMONSTRATION_MS),
+            Phase::Solved { .. } | Phase::Unsolved => after(RESULT_PAUSE_MS),
+        }
+    }
+
+    /// Posts a chat message, trimmed.
+    ///
+    /// # Errors
+    /// `NotMember`, or `BadChat` for an empty or overlong message or one
+    /// with control characters.
+    pub fn chat(&mut self, player: PlayerId, text: &str) -> Events {
+        self.require_member(player)?;
+        let text = text.trim();
+        if text.is_empty()
+            || text.chars().count() > CHAT_MAX_CHARS
+            || text.chars().any(char::is_control)
+        {
+            return Err(RoomError::BadChat);
+        }
+        Ok(vec![RoomEvent::Chat {
+            player,
+            text: text.to_owned(),
+        }])
     }
 
     /// Adds a member; names are unique in the room ignoring case.
@@ -166,6 +252,7 @@ impl RoomState {
         let Some(game) = Game::new(board, robots, BIDDING_WINDOW_MS, shuffle) else {
             return Ok(vec![RoomEvent::GameOver {
                 leaders: Vec::new(),
+                scores: Vec::new(),
             }]);
         };
         let event = round_started(&game);
@@ -252,6 +339,7 @@ impl RoomState {
                 if game.is_over() {
                     vec![RoomEvent::GameOver {
                         leaders: game.leaders(),
+                        scores: scores(game),
                     }]
                 } else {
                     let event = round_started(game);
@@ -282,9 +370,11 @@ impl RoomState {
         }
         self.mark(now);
         match phase {
-            Phase::Demonstrating { player, bid, .. } => {
-                vec![RoomEvent::Demonstrating { player, bid }]
-            }
+            Phase::Demonstrating { player, bid, .. } => vec![RoomEvent::Demonstrating {
+                player,
+                bid,
+                until: Timestamp(now.0.saturating_add(DEMONSTRATION_MS)),
+            }],
             Phase::Solved { .. } | Phase::Unsolved => vec![RoomEvent::RoundEnded { phase }],
             Phase::Bidding => Vec::new(),
         }
@@ -317,6 +407,10 @@ const fn stage(phase: Phase) -> Phase {
         },
         other => other,
     }
+}
+
+fn scores(game: &Game) -> Vec<(PlayerId, u32)> {
+    game.scores().iter().map(|(&p, &s)| (p, s)).collect()
 }
 
 fn round_started(game: &Game) -> RoomEvent {

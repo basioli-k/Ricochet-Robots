@@ -1,12 +1,12 @@
 //! The room state machine, driven with explicit timestamps.
 
 use domain::{
-    Board, BoardBuilder, Direction, GameError, Phase, PlayerId, Position, RobotColor, Robots,
+    Bid, Board, BoardBuilder, Direction, GameError, Phase, PlayerId, Position, RobotColor, Robots,
     RoundError, Shuffle, Symbol, Target, Timestamp,
 };
 use server::rooms::state::{
-    BIDDING_WINDOW_MS, DEMONSTRATION_MS, IDLE_ROUND_MS, Member, RESULT_PAUSE_MS, RoomError,
-    RoomEvent, RoomState,
+    BIDDING_WINDOW_MS, CHAT_MAX_CHARS, DEMONSTRATION_MS, GameView, IDLE_ROUND_MS, Member,
+    RESULT_PAUSE_MS, RoomError, RoomEvent, RoomState,
 };
 
 const ANA: PlayerId = PlayerId::new(1);
@@ -121,7 +121,8 @@ fn a_full_round_runs_on_ticks() {
         room.tick(t(close)),
         [RoomEvent::Demonstrating {
             player: ANA,
-            bid: 1
+            bid: 1,
+            until: t(close + DEMONSTRATION_MS)
         }]
     );
 
@@ -240,7 +241,8 @@ fn a_bidder_who_left_is_skipped_when_bidding_closes() {
         room.tick(t(BIDDING_WINDOW_MS)),
         [RoomEvent::Demonstrating {
             player: ANA,
-            bid: 2
+            bid: 2,
+            until: t(BIDDING_WINDOW_MS + DEMONSTRATION_MS)
         }]
     );
 }
@@ -258,7 +260,13 @@ fn the_last_round_ends_the_game_with_its_leaders() {
         now += RESULT_PAUSE_MS;
         last = room.tick(t(now));
     }
-    assert_eq!(last, [RoomEvent::GameOver { leaders: vec![ANA] }]);
+    assert_eq!(
+        last,
+        [RoomEvent::GameOver {
+            leaders: vec![ANA],
+            scores: vec![(ANA, 2)]
+        }]
+    );
     assert!(room.game().unwrap().is_over());
     assert_eq!(room.tick(t(now + 1)), [], "nothing happens after the game");
 }
@@ -305,7 +313,10 @@ fn a_board_without_targets_ends_at_once() {
     room.join(member(ANA, "ana")).unwrap();
     assert_eq!(
         room.start(ANA, &mut InOrder, t(0)).unwrap(),
-        [RoomEvent::GameOver { leaders: vec![] }]
+        [RoomEvent::GameOver {
+            leaders: vec![],
+            scores: vec![]
+        }]
     );
 }
 
@@ -328,4 +339,74 @@ fn a_round_whose_bidders_all_left_ends_unsolved() {
             phase: Phase::Unsolved
         }]
     );
+}
+
+#[test]
+fn the_view_shows_the_round_and_when_its_stage_ends() {
+    let mut room = RoomState::new(board(), robots(), 4);
+    room.join(member(ANA, "ana")).unwrap();
+    let before = room.view();
+    assert_eq!(before.members, [member(ANA, "ana")]);
+    assert_eq!(before.board, board());
+    assert_eq!(before.game, None);
+
+    room.start(ANA, &mut InOrder, t(0)).unwrap();
+    assert_eq!(room.view().game.unwrap().deadline, None, "no bids yet");
+    room.bid(ANA, 2, t(500)).unwrap();
+    assert_eq!(
+        room.view().game,
+        Some(GameView {
+            target: RED_MOON,
+            robots: robots(),
+            phase: Phase::Bidding,
+            bids: vec![Bid {
+                player: ANA,
+                moves: 2,
+                placed_at: t(500)
+            }],
+            deadline: Some(t(500 + BIDDING_WINDOW_MS)),
+            scores: vec![],
+            targets_left: 1,
+            over: false,
+        })
+    );
+    let close = 500 + BIDDING_WINDOW_MS;
+    room.tick(t(close));
+    assert_eq!(
+        room.view().game.unwrap().deadline,
+        Some(t(close + DEMONSTRATION_MS))
+    );
+    room.move_robot(ANA, RobotColor::Red, Direction::Up, t(close + 7))
+        .unwrap();
+    let solved = room.view().game.unwrap();
+    assert_eq!(solved.deadline, Some(t(close + 7 + RESULT_PAUSE_MS)));
+    assert_eq!(solved.scores, [], "scored when the next round is dealt");
+}
+
+#[test]
+fn chat_is_trimmed_and_bounded() {
+    let mut room = started();
+    assert_eq!(
+        room.chat(ANA, "  hi  ").unwrap(),
+        [RoomEvent::Chat {
+            player: ANA,
+            text: "hi".into()
+        }]
+    );
+    let longest = "é".repeat(CHAT_MAX_CHARS);
+    assert_eq!(
+        room.chat(ANA, &longest).unwrap().len(),
+        1,
+        "counts characters"
+    );
+    for bad in [
+        "",
+        "   ",
+        &"a".repeat(CHAT_MAX_CHARS + 1),
+        "a\u{7}b",
+        "line\nbreak",
+    ] {
+        assert_eq!(room.chat(ANA, bad), Err(RoomError::BadChat), "{bad:?}");
+    }
+    assert_eq!(room.chat(PlayerId::new(9), "hi"), Err(RoomError::NotMember));
 }

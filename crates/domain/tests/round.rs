@@ -1,7 +1,7 @@
 use Direction::{Left, Right, Up};
 use RobotColor::{Blue, Green, Red};
 use domain::{
-    Board, BoardBuilder, Direction, Phase, PlayerId, Position, RobotColor, Robots, Round,
+    Bid, Board, BoardBuilder, Direction, Phase, PlayerId, Position, RobotColor, Robots, Round,
     RoundError, Symbol, Target, Timestamp,
 };
 
@@ -252,5 +252,27 @@ fn actions_outside_their_phase_are_refused() {
     assert_eq!(
         solved, finished,
         "refused actions must not change the round"
+    );
+}
+
+#[test]
+fn bids_are_listed_best_first() {
+    let mut round = Round::new(RED_MOON, robots(), WINDOW);
+    round.bid(ANA, 5, Timestamp(0)).unwrap();
+    round.bid(BOB, 3, Timestamp(10)).unwrap();
+    assert_eq!(
+        round.bids(),
+        [
+            Bid {
+                player: BOB,
+                moves: 3,
+                placed_at: Timestamp(10)
+            },
+            Bid {
+                player: ANA,
+                moves: 5,
+                placed_at: Timestamp(0)
+            }
+        ]
     );
 }

@@ -5,10 +5,11 @@ use std::sync::Arc;
 
 use domain::{
     BoardBuilder, Direction, Phase, PlayerId, Position, RobotColor, Robots, Symbol, Target,
+    Timestamp,
 };
 use server::clock::FakeClock;
 use server::rooms::actor::{CallError, DeckShuffler, RoomHandle, TICK};
-use server::rooms::state::{BIDDING_WINDOW_MS, Member, RoomError, RoomEvent};
+use server::rooms::state::{BIDDING_WINDOW_MS, DEMONSTRATION_MS, Member, RoomError, RoomEvent};
 use tokio::sync::broadcast;
 
 const ANA: PlayerId = PlayerId::new(1);
@@ -81,7 +82,8 @@ async fn a_round_plays_through_the_handle() {
         next(&mut events).await,
         RoomEvent::Demonstrating {
             player: BOB,
-            bid: 1
+            bid: 1,
+            until: Timestamp(BIDDING_WINDOW_MS + DEMONSTRATION_MS)
         }
     );
 
@@ -149,7 +151,8 @@ async fn the_room_advances_its_timers_on_its_own() {
         next(&mut events).await,
         RoomEvent::Demonstrating {
             player: ANA,
-            bid: 1
+            bid: 1,
+            until: Timestamp(BIDDING_WINDOW_MS + DEMONSTRATION_MS)
         },
         "the next tick (every {TICK:?}) closes bidding"
     );
@@ -176,4 +179,27 @@ async fn the_room_stops_when_every_handle_is_dropped() {
         .await
         .expect("the task ends");
     assert_eq!(ended, Err(broadcast::error::RecvError::Closed));
+}
+
+#[tokio::test]
+async fn chat_and_the_view_go_through_the_handle() {
+    let room = room(4, Arc::new(FakeClock::at(0)));
+    let mut events = room.subscribe();
+    room.join(member(1, "ana")).await.unwrap();
+    next(&mut events).await;
+    room.chat(ANA, " hello ".into()).await.unwrap();
+    assert_eq!(
+        next(&mut events).await,
+        RoomEvent::Chat {
+            player: ANA,
+            text: "hello".into()
+        }
+    );
+    assert_eq!(
+        room.chat(BOB, "hi".into()).await,
+        Err(CallError::Room(RoomError::NotMember))
+    );
+    let view = room.view().await.unwrap();
+    assert_eq!(view.members, [member(1, "ana")]);
+    assert!(view.game.is_none());
 }

@@ -8,7 +8,7 @@ use std::time::Duration;
 use domain::{Board, Direction, PlayerId, RobotColor, Robots, Shuffle, Target};
 use tokio::sync::{broadcast, mpsc, oneshot};
 
-use super::state::{Member, RoomError, RoomEvent, RoomState};
+use super::state::{Member, RoomError, RoomEvent, RoomState, RoomView};
 use crate::clock::Clock;
 
 /// How often a room checks its timers.
@@ -49,14 +49,17 @@ enum Command {
     Bid(PlayerId, u8),
     Move(PlayerId, RobotColor, Direction),
     Concede(PlayerId),
+    Chat(PlayerId, String),
     Tick,
     Members,
+    View,
     CloseIfEmpty,
 }
 
 enum Reply {
     Events(Result<(), RoomError>),
     Members(Vec<Member>),
+    View(Box<RoomView>),
     Closed(bool),
 }
 
@@ -145,7 +148,9 @@ impl RoomHandle {
     async fn act(&self, command: Command) -> Result<(), CallError> {
         match self.call(command).await? {
             Reply::Events(result) => Ok(result?),
-            Reply::Members(_) | Reply::Closed(_) => unreachable!("commands answer with events"),
+            Reply::Members(_) | Reply::View(_) | Reply::Closed(_) => {
+                unreachable!("commands answer with events")
+            }
         }
     }
 
@@ -203,7 +208,9 @@ impl RoomHandle {
     pub async fn members(&self) -> Result<Vec<Member>, CallError> {
         match self.call(Command::Members).await? {
             Reply::Members(members) => Ok(members),
-            Reply::Events(_) | Reply::Closed(_) => unreachable!("Members answers with members"),
+            Reply::Events(_) | Reply::View(_) | Reply::Closed(_) => {
+                unreachable!("Members answers with members")
+            }
         }
     }
 
@@ -217,8 +224,30 @@ impl RoomHandle {
     pub async fn close_if_empty(&self) -> Result<bool, CallError> {
         match self.call(Command::CloseIfEmpty).await? {
             Reply::Closed(closed) => Ok(closed),
-            Reply::Events(_) | Reply::Members(_) => unreachable!("close answers with Closed"),
+            Reply::Events(_) | Reply::Members(_) | Reply::View(_) => {
+                unreachable!("close answers with Closed")
+            }
         }
+    }
+
+    /// The whole room as it is now, for a member who just (re)connected.
+    /// Subscribe before asking, so no event falls between the two.
+    ///
+    /// # Errors
+    /// `Closed`.
+    pub async fn view(&self) -> Result<RoomView, CallError> {
+        match self.call(Command::View).await? {
+            Reply::View(view) => Ok(*view),
+            Reply::Events(_) | Reply::Members(_) | Reply::Closed(_) => {
+                unreachable!("View answers with the view")
+            }
+        }
+    }
+
+    /// # Errors
+    /// The room's refusal, or `Closed`.
+    pub async fn chat(&self, player: PlayerId, text: String) -> Result<(), CallError> {
+        self.act(Command::Chat(player, text)).await
     }
 }
 
@@ -236,8 +265,10 @@ fn apply(
         Command::Bid(player, moves) => room.bid(player, moves, now),
         Command::Move(player, robot, dir) => room.move_robot(player, robot, dir, now),
         Command::Concede(player) => room.concede(player, now),
+        Command::Chat(player, text) => room.chat(player, &text),
         Command::Tick => Ok(room.tick(now)),
         Command::Members => return Reply::Members(room.members().to_vec()),
+        Command::View => return Reply::View(Box::new(room.view())),
         Command::CloseIfEmpty => unreachable!("handled by the task loop"),
     };
     Reply::Events(result.map(|events| publish(out, events)))

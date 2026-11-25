@@ -118,6 +118,12 @@ impl Round {
         }
     }
 
+    /// Current bids, best first (fewest moves, then earliest).
+    #[must_use]
+    pub fn bids(&self) -> Vec<Bid> {
+        self.bids.ranking()
+    }
+
     /// When bidding ends, once someone has bid.
     #[must_use]
     pub fn bidding_closes_at(&self) -> Option<Timestamp> {
