@@ -5,7 +5,7 @@ use std::sync::Arc;
 use domain::{PlayerId, fixed_board};
 use server::clock::FakeClock;
 use server::rate_limit::SlidingWindow;
-use server::rooms::actor::RandomShuffler;
+use server::rooms::actor::{CallError, RandomShuffler};
 use server::rooms::manager::{CreateError, Creator, EMPTY_CLOSE_MS, RoomLimits, RoomManager};
 use server::rooms::state::Member;
 
@@ -150,7 +150,7 @@ async fn rooms_are_found_and_listed_with_member_counts() {
 async fn empty_rooms_close_after_the_idle_period() {
     let clock = Arc::new(FakeClock::at(0));
     let rooms = manager(10, 5, clock.clone());
-    let (empty, _) = rooms.create(by("a")).unwrap();
+    let (empty, kept) = rooms.create(by("a")).unwrap();
     let (busy, handle) = rooms.create(by("a")).unwrap();
     handle
         .join(Member {
@@ -171,6 +171,11 @@ async fn empty_rooms_close_after_the_idle_period() {
     clock.advance(1);
     assert_eq!(rooms.close_idle().await, 1);
     assert!(rooms.get(&empty).is_none());
+    assert_eq!(
+        kept.members().await,
+        Err(CallError::Closed),
+        "its task stopped, so a handle held elsewhere is closed too"
+    );
     assert!(rooms.get(&busy).is_some(), "a room with members stays open");
 }
 

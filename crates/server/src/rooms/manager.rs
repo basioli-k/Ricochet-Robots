@@ -177,8 +177,10 @@ impl RoomManager {
         summaries
     }
 
-    /// Closes rooms that have been empty for [`EMPTY_CLOSE_MS`]; call it
-    /// periodically. Returns how many were closed.
+    /// Closes rooms that have been empty for [`EMPTY_CLOSE_MS`]: their
+    /// tasks stop, so handles still held elsewhere get `Closed`, and they no
+    /// longer count against the caps. Call it periodically. Returns how
+    /// many were closed.
     pub async fn close_idle(&self) -> usize {
         let now = self.clock.now();
         let handles: Vec<(String, RoomHandle)> = self
@@ -188,19 +190,31 @@ impl RoomManager {
             .collect();
         let mut closed = 0;
         for (id, handle) in handles {
+            // A room whose task already stopped counts as empty.
             let empty = handle.members().await.map_or(true, |m| m.is_empty());
-            let mut rooms = self.lock();
-            let Some(entry) = rooms.get_mut(&id) else {
-                continue;
+            let due = {
+                let mut rooms = self.lock();
+                let Some(entry) = rooms.get_mut(&id) else {
+                    continue;
+                };
+                if !empty {
+                    entry.empty_since = None;
+                    continue;
+                }
+                let since = *entry.empty_since.get_or_insert(now);
+                now.0.saturating_sub(since.0) >= EMPTY_CLOSE_MS
             };
-            if !empty {
-                entry.empty_since = None;
+            if !due {
                 continue;
             }
-            let since = *entry.empty_since.get_or_insert(now);
-            if now.0.saturating_sub(since.0) >= EMPTY_CLOSE_MS {
-                rooms.remove(&id);
-                closed += 1;
+            // The task decides, so a member who joined since the check
+            // above keeps the room open.
+            let stopped = handle.close_if_empty().await.unwrap_or(true);
+            let mut rooms = self.lock();
+            if stopped {
+                closed += usize::from(rooms.remove(&id).is_some());
+            } else if let Some(entry) = rooms.get_mut(&id) {
+                entry.empty_since = None;
             }
         }
         closed

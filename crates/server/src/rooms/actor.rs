@@ -51,18 +51,21 @@ enum Command {
     Concede(PlayerId),
     Tick,
     Members,
+    CloseIfEmpty,
 }
 
 enum Reply {
     Events(Result<(), RoomError>),
     Members(Vec<Member>),
+    Closed(bool),
 }
 
 /// Why a call on a room failed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CallError {
     Room(RoomError),
-    /// The room's task has stopped (the room was closed).
+    /// The room's task has stopped: it was closed, or every handle was
+    /// dropped.
     Closed,
 }
 
@@ -87,7 +90,7 @@ impl std::fmt::Debug for RoomHandle {
 
 impl RoomHandle {
     /// Starts a room's task on the current runtime. It ticks every [`TICK`]
-    /// and stops once every handle is dropped.
+    /// and stops when closed while empty or once every handle is dropped.
     #[must_use]
     pub fn spawn(
         board: Board,
@@ -106,6 +109,14 @@ impl RoomHandle {
                 tokio::select! {
                     message = inbox.recv() => {
                         let Some((command, reply)) = message else { break };
+                        if matches!(command, Command::CloseIfEmpty) {
+                            let close = room.members().is_empty();
+                            let _ = reply.send(Reply::Closed(close));
+                            if close {
+                                break;
+                            }
+                            continue;
+                        }
                         let answer = apply(&mut room, command, clock.now(), shuffler.as_ref(), &out);
                         let _ = reply.send(answer);
                     }
@@ -134,7 +145,7 @@ impl RoomHandle {
     async fn act(&self, command: Command) -> Result<(), CallError> {
         match self.call(command).await? {
             Reply::Events(result) => Ok(result?),
-            Reply::Members(_) => unreachable!("only Members answers with members"),
+            Reply::Members(_) | Reply::Closed(_) => unreachable!("commands answer with events"),
         }
     }
 
@@ -192,7 +203,21 @@ impl RoomHandle {
     pub async fn members(&self) -> Result<Vec<Member>, CallError> {
         match self.call(Command::Members).await? {
             Reply::Members(members) => Ok(members),
-            Reply::Events(_) => unreachable!("Members answers with members"),
+            Reply::Events(_) | Reply::Closed(_) => unreachable!("Members answers with members"),
+        }
+    }
+
+    /// Stops the room if nobody is in it; every later call on any handle
+    /// gets `Closed`. Returns whether it stopped. Deciding inside the task
+    /// means a join that races the close either lands first (and keeps the
+    /// room open) or gets `Closed`.
+    ///
+    /// # Errors
+    /// `Closed` if it had already stopped.
+    pub async fn close_if_empty(&self) -> Result<bool, CallError> {
+        match self.call(Command::CloseIfEmpty).await? {
+            Reply::Closed(closed) => Ok(closed),
+            Reply::Events(_) | Reply::Members(_) => unreachable!("close answers with Closed"),
         }
     }
 }
@@ -213,6 +238,7 @@ fn apply(
         Command::Concede(player) => room.concede(player, now),
         Command::Tick => Ok(room.tick(now)),
         Command::Members => return Reply::Members(room.members().to_vec()),
+        Command::CloseIfEmpty => unreachable!("handled by the task loop"),
     };
     Reply::Events(result.map(|events| publish(out, events)))
 }
