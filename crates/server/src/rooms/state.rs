@@ -48,6 +48,9 @@ pub enum RoomEvent {
         bid: u8,
         /// When they concede automatically.
         until: Timestamp,
+        /// Where the robots stand for this demonstration: back at the
+        /// round's start if an earlier demonstrator failed.
+        robots: Robots,
     },
     RobotMoved {
         robot: RobotColor,
@@ -55,6 +58,8 @@ pub enum RoomEvent {
     },
     RoundEnded {
         phase: Phase,
+        /// Where they ended: as solved, or back at the start if unsolved.
+        robots: Robots,
     },
     GameOver {
         leaders: Vec<PlayerId>,
@@ -421,6 +426,7 @@ impl RoomState {
             }
         }
         let phase = game.round().phase();
+        let robots = *game.round().robots();
         if self.since.is_some_and(|s| s.phase == stage(phase)) {
             return Vec::new();
         }
@@ -430,8 +436,9 @@ impl RoomState {
                 player,
                 bid,
                 until: Timestamp(now.0.saturating_add(DEMONSTRATION_MS)),
+                robots,
             }],
-            Phase::Solved { .. } | Phase::Unsolved => vec![RoomEvent::RoundEnded { phase }],
+            Phase::Solved { .. } | Phase::Unsolved => vec![RoomEvent::RoundEnded { phase, robots }],
             Phase::Bidding => Vec::new(),
         }
     }

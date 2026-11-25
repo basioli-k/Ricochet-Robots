@@ -425,6 +425,8 @@ pub enum ServerMessage {
         bid: u8,
         #[ts(type = "number")]
         until: u64,
+        /// Back at the round's start if an earlier demonstrator failed.
+        robots: RobotsView,
     },
     RobotMoved {
         robot: Robot,
@@ -432,6 +434,8 @@ pub enum ServerMessage {
     },
     RoundResolved {
         phase: PhaseView,
+        /// Where the robots ended: as solved, or back at the start.
+        robots: RobotsView,
     },
     GameOver {
         leaders: Vec<String>,
@@ -476,17 +480,24 @@ impl From<RoomEvent> for ServerMessage {
                 moves,
                 closes_at: ms(closes_at),
             },
-            RoomEvent::Demonstrating { player, bid, until } => Self::DemonstrationStarted {
+            RoomEvent::Demonstrating {
+                player,
+                bid,
+                until,
+                robots,
+            } => Self::DemonstrationStarted {
                 player: player_id(player),
                 bid,
                 until: ms(until),
+                robots: (&robots).into(),
             },
             RoomEvent::RobotMoved { robot, robots } => Self::RobotMoved {
                 robot: robot.into(),
                 robots: (&robots).into(),
             },
-            RoomEvent::RoundEnded { phase } => Self::RoundResolved {
+            RoomEvent::RoundEnded { phase, robots } => Self::RoundResolved {
                 phase: phase.into(),
+                robots: (&robots).into(),
             },
             RoomEvent::GameOver { leaders, scores: s } => Self::GameOver {
                 leaders: leaders.into_iter().map(player_id).collect(),

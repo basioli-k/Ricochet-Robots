@@ -6,7 +6,7 @@ use domain::{
 };
 use serde_json::json;
 use server::protocol::{
-    BoardView, ClientMessage, Dir, Robot, ServerMessage, parse_player_id, player_id,
+    BoardView, ClientMessage, Dir, Robot, RobotsView, ServerMessage, parse_player_id, player_id,
     room_error_code,
 };
 use server::rooms::state::{Member, RoomError, RoomEvent, RoomState};
@@ -96,13 +96,15 @@ fn room_events_become_server_messages() {
                 phase: Phase::Solved {
                     winner: ANA,
                     moves: 2
-                }
+                },
+                robots: fixed_board::starting_robots()
             }
             .into()
         ),
         json!({
             "type": "round_resolved",
-            "phase": { "kind": "solved", "winner": player_id(ANA), "moves": 2 }
+            "phase": { "kind": "solved", "winner": player_id(ANA), "moves": 2 },
+            "robots": serde_json::to_value(RobotsView::from(&fixed_board::starting_robots())).unwrap()
         })
     );
     assert_eq!(

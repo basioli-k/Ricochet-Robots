@@ -123,7 +123,8 @@ fn a_full_round_runs_on_ticks() {
         [RoomEvent::Demonstrating {
             player: ANA,
             bid: 1,
-            until: t(close + DEMONSTRATION_MS)
+            until: t(close + DEMONSTRATION_MS),
+            robots: robots()
         }]
     );
 
@@ -143,7 +144,8 @@ fn a_full_round_runs_on_ticks() {
             phase: Phase::Solved {
                 winner: ANA,
                 moves: 1
-            }
+            },
+            robots: *room.game().unwrap().round().robots()
         }
     );
 
@@ -172,7 +174,8 @@ fn a_slow_demonstrator_concedes_and_the_round_can_end_unsolved() {
     assert_eq!(
         room.tick(t(late)),
         [RoomEvent::RoundEnded {
-            phase: Phase::Unsolved
+            phase: Phase::Unsolved,
+            robots: robots()
         }]
     );
 }
@@ -190,7 +193,8 @@ fn moving_does_not_restart_the_demonstration_clock() {
     assert_eq!(
         room.tick(t(close + DEMONSTRATION_MS)),
         [RoomEvent::RoundEnded {
-            phase: Phase::Unsolved
+            phase: Phase::Unsolved,
+            robots: robots()
         }]
     );
 }
@@ -202,7 +206,8 @@ fn an_unbid_round_is_abandoned_after_the_idle_timeout() {
     assert_eq!(
         room.tick(t(IDLE_ROUND_MS)),
         [RoomEvent::RoundEnded {
-            phase: Phase::Unsolved
+            phase: Phase::Unsolved,
+            robots: robots()
         }]
     );
 }
@@ -226,7 +231,8 @@ fn a_leaving_demonstrator_concedes() {
         [
             RoomEvent::Left(BOB),
             RoomEvent::RoundEnded {
-                phase: Phase::Unsolved
+                phase: Phase::Unsolved,
+                robots: robots()
             }
         ]
     );
@@ -243,7 +249,8 @@ fn a_bidder_who_left_is_skipped_when_bidding_closes() {
         [RoomEvent::Demonstrating {
             player: ANA,
             bid: 2,
-            until: t(BIDDING_WINDOW_MS + DEMONSTRATION_MS)
+            until: t(BIDDING_WINDOW_MS + DEMONSTRATION_MS),
+            robots: robots()
         }]
     );
 }
@@ -293,7 +300,8 @@ fn a_demonstrator_can_concede() {
     assert_eq!(
         room.concede(ANA, t(BIDDING_WINDOW_MS + 1)).unwrap(),
         [RoomEvent::RoundEnded {
-            phase: Phase::Unsolved
+            phase: Phase::Unsolved,
+            robots: robots()
         }]
     );
 }
@@ -337,7 +345,8 @@ fn a_round_whose_bidders_all_left_ends_unsolved() {
     assert_eq!(
         room.tick(t(BIDDING_WINDOW_MS)),
         [RoomEvent::RoundEnded {
-            phase: Phase::Unsolved
+            phase: Phase::Unsolved,
+            robots: robots()
         }]
     );
 }
@@ -488,4 +497,26 @@ fn a_demonstrator_who_reconnects_keeps_their_turn() {
         phase(&room),
         Phase::Demonstrating { player: ANA, .. }
     ));
+}
+
+#[test]
+fn the_next_demonstrator_starts_from_the_round_start() {
+    let mut room = started();
+    room.bid(ANA, 2, t(0)).unwrap();
+    room.bid(BOB, 3, t(1)).unwrap();
+    let close = BIDDING_WINDOW_MS;
+    room.tick(t(close));
+    room.move_robot(ANA, RobotColor::Red, Direction::Down, t(close + 1))
+        .unwrap();
+    assert_ne!(*room.game().unwrap().round().robots(), robots());
+    assert_eq!(
+        room.concede(ANA, t(close + 2)).unwrap(),
+        [RoomEvent::Demonstrating {
+            player: BOB,
+            bid: 3,
+            until: t(close + 2 + DEMONSTRATION_MS),
+            robots: robots()
+        }],
+        "Bob sees the robots back where the round began"
+    );
 }

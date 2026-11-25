@@ -18,4 +18,12 @@ export type ServerMessage = { "type": "snapshot",
 /**
  * The receiving player's ID.
  */
-you: string, room: RoomSnapshot, } | { "type": "joined", player: Player, } | { "type": "left", player: string, } | { "type": "round_started", target: Target, robots: Robots, } | { "type": "bid_placed", player: string, moves: number, closes_at: number, } | { "type": "demonstration_started", player: string, bid: number, until: number, } | { "type": "robot_moved", robot: Robot, robots: Robots, } | { "type": "round_resolved", phase: Phase, } | { "type": "game_over", leaders: Array<string>, scores: Array<Score>, } | { "type": "chat", player: string, text: string, } | { "type": "error", code: string, };
+you: string, room: RoomSnapshot, } | { "type": "joined", player: Player, } | { "type": "left", player: string, } | { "type": "round_started", target: Target, robots: Robots, } | { "type": "bid_placed", player: string, moves: number, closes_at: number, } | { "type": "demonstration_started", player: string, bid: number, until: number, 
+/**
+ * Back at the round's start if an earlier demonstrator failed.
+ */
+robots: Robots, } | { "type": "robot_moved", robot: Robot, robots: Robots, } | { "type": "round_resolved", phase: Phase, 
+/**
+ * Where the robots ended: as solved, or back at the start.
+ */
+robots: Robots, } | { "type": "game_over", leaders: Array<string>, scores: Array<Score>, } | { "type": "chat", player: string, text: string, } | { "type": "error", code: string, };

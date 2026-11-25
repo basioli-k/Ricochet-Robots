@@ -40,8 +40,13 @@ fn recording(capacity: usize, clock: Arc<FakeClock>, results: Arc<InMemoryStore>
         .unwrap()
         .build()
         .unwrap();
-    let robots = Robots::new([pos(5, 5), pos(5, 10), pos(10, 0), pos(15, 15)]).unwrap();
+    let robots = start();
     RoomHandle::spawn(board, robots, capacity, clock, Arc::new(InOrder), results)
+}
+
+/// Where every room in these tests starts its robots.
+fn start() -> Robots {
+    Robots::new([pos(5, 5), pos(5, 10), pos(10, 0), pos(15, 15)]).unwrap()
 }
 
 fn member(id: u128, name: &str) -> Member {
@@ -92,7 +97,8 @@ async fn a_round_plays_through_the_handle() {
         RoomEvent::Demonstrating {
             player: BOB,
             bid: 1,
-            until: Timestamp(BIDDING_WINDOW_MS + DEMONSTRATION_MS)
+            until: Timestamp(BIDDING_WINDOW_MS + DEMONSTRATION_MS),
+            robots: start()
         }
     );
 
@@ -109,7 +115,8 @@ async fn a_round_plays_through_the_handle() {
             phase: Phase::Solved {
                 winner: BOB,
                 moves: 1
-            }
+            },
+            robots: Robots::new([pos(0, 5), pos(5, 10), pos(10, 0), pos(15, 15)]).unwrap()
         }
     );
 }
@@ -161,7 +168,8 @@ async fn the_room_advances_its_timers_on_its_own() {
         RoomEvent::Demonstrating {
             player: ANA,
             bid: 1,
-            until: Timestamp(BIDDING_WINDOW_MS + DEMONSTRATION_MS)
+            until: Timestamp(BIDDING_WINDOW_MS + DEMONSTRATION_MS),
+            robots: start()
         },
         "the next tick (every {TICK:?}) closes bidding"
     );
