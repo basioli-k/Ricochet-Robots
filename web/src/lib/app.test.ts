@@ -107,6 +107,28 @@ describe('AppModel', () => {
     expect(app.busy).toBe(false);
   });
 
+  it('skips a poll while the player is doing something', async () => {
+    let calls = 0;
+    let release = () => {};
+    const app = new AppModel(
+      fakeApi({
+        rooms: () => {
+          calls += 1;
+          return new Promise((resolve) => {
+            release = () => {
+              resolve([]);
+            };
+          });
+        },
+      }),
+    );
+    const refresh = app.refresh();
+    await app.poll();
+    expect(calls).toBe(1);
+    release();
+    await refresh;
+  });
+
   it('leaves the lobby from a poll when the session has expired', async () => {
     let expired = false;
     const app = new AppModel(

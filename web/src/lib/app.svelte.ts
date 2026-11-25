@@ -63,6 +63,8 @@ export class AppModel {
    */
   async poll(): Promise<void> {
     if (this.busy) return;
+    // Not marked busy: an action may start meanwhile, and either may set
+    // the rooms last; both are fresh lists.
     try {
       this.rooms = await this.api.rooms();
     } catch (e) {
