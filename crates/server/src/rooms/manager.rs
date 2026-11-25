@@ -9,6 +9,7 @@ use domain::{Board, Robots, Timestamp};
 use super::actor::{DeckShuffler, RoomHandle};
 use crate::clock::Clock;
 use crate::identity::random_token;
+use crate::rate_limit::RateLimiter;
 
 /// An empty room is closed after this long.
 pub const EMPTY_CLOSE_MS: u64 = 10 * 60_000;
@@ -17,8 +18,7 @@ pub const EMPTY_CLOSE_MS: u64 = 10 * 60_000;
 pub struct RoomLimits {
     /// Open rooms in total.
     pub global: usize,
-    /// Open rooms per owner; a room counts against each of its owners
-    /// (e.g. the creating player and their client address).
+    /// Open rooms per creating player, and separately per client address.
     pub per_owner: usize,
     /// Members per room.
     pub capacity: usize,
@@ -38,6 +38,15 @@ impl Default for RoomLimits {
 pub enum CreateError {
     TooManyRooms,
     OwnerLimit,
+    RateLimited,
+}
+
+/// Who opens a room: the player, and their client's rate-limit key (see
+/// [`crate::rate_limit::client_key`]). The room counts against both.
+#[derive(Debug, Clone, Copy)]
+pub struct Creator<'a> {
+    pub player: &'a str,
+    pub client: &'a str,
 }
 
 /// Lobby view of a room.
@@ -59,6 +68,8 @@ pub struct RoomManager {
     setup: Box<dyn Fn() -> (Board, Robots) + Send + Sync>,
     clock: Arc<dyn Clock>,
     shuffler: Arc<dyn DeckShuffler>,
+    /// Room creations per client over time, on top of the open-room caps.
+    create_limiter: Arc<dyn RateLimiter>,
     rooms: Mutex<HashMap<String, Entry>>,
 }
 
@@ -77,12 +88,14 @@ impl RoomManager {
         setup: impl Fn() -> (Board, Robots) + Send + Sync + 'static,
         clock: Arc<dyn Clock>,
         shuffler: Arc<dyn DeckShuffler>,
+        create_limiter: Arc<dyn RateLimiter>,
     ) -> Self {
         Self {
             limits,
             setup: Box::new(setup),
             clock,
             shuffler,
+            create_limiter,
             rooms: Mutex::new(HashMap::new()),
         }
     }
@@ -95,13 +108,14 @@ impl RoomManager {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    /// Opens a room counted against each of `owners`; must run inside a
-    /// Tokio runtime.
+    /// Opens a room for `by`; must run inside a Tokio runtime. Only a
+    /// creation that passes the caps counts against the rate limit.
     ///
     /// # Errors
-    /// `TooManyRooms` at the global cap, `OwnerLimit` if any owner is at
-    /// their cap.
-    pub fn create(&self, owners: &[&str]) -> Result<(String, RoomHandle), CreateError> {
+    /// `TooManyRooms` at the global cap, `OwnerLimit` if the player or the
+    /// client is at their cap, `RateLimited` if the client creates too often.
+    pub fn create(&self, by: Creator<'_>) -> Result<(String, RoomHandle), CreateError> {
+        let owners = [by.player, by.client];
         let mut rooms = self.lock();
         if rooms.len() >= self.limits.global {
             return Err(CreateError::TooManyRooms);
@@ -114,6 +128,9 @@ impl RoomManager {
             if open >= self.limits.per_owner {
                 return Err(CreateError::OwnerLimit);
             }
+        }
+        if !self.create_limiter.allow(by.client, self.clock.now()) {
+            return Err(CreateError::RateLimited);
         }
         let (board, robots) = (self.setup)();
         let handle = RoomHandle::spawn(

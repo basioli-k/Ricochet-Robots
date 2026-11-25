@@ -4,11 +4,31 @@ use std::sync::Arc;
 
 use domain::{PlayerId, fixed_board};
 use server::clock::FakeClock;
+use server::rate_limit::SlidingWindow;
 use server::rooms::actor::RandomShuffler;
-use server::rooms::manager::{CreateError, EMPTY_CLOSE_MS, RoomLimits, RoomManager};
+use server::rooms::manager::{CreateError, Creator, EMPTY_CLOSE_MS, RoomLimits, RoomManager};
 use server::rooms::state::Member;
 
 fn manager(global: usize, per_owner: usize, clock: Arc<FakeClock>) -> RoomManager {
+    limited(global, per_owner, usize::MAX, clock)
+}
+
+/// A manager allowing `creates` room creations per client per minute.
+fn limited(global: usize, per_owner: usize, creates: usize, clock: Arc<FakeClock>) -> RoomManager {
+    sharing(
+        global,
+        per_owner,
+        Arc::new(SlidingWindow::new(creates, 60_000)),
+        clock,
+    )
+}
+
+fn sharing(
+    global: usize,
+    per_owner: usize,
+    create_limiter: Arc<SlidingWindow>,
+    clock: Arc<FakeClock>,
+) -> RoomManager {
     RoomManager::new(
         RoomLimits {
             global,
@@ -18,40 +38,99 @@ fn manager(global: usize, per_owner: usize, clock: Arc<FakeClock>) -> RoomManage
         || (fixed_board::board(), fixed_board::starting_robots()),
         clock,
         Arc::new(RandomShuffler),
+        create_limiter,
     )
+}
+
+/// A creator whose player and client keys are both derived from `name`.
+fn by(name: &str) -> Creator<'_> {
+    Creator {
+        player: name,
+        client: name,
+    }
 }
 
 #[tokio::test]
 async fn owners_and_the_server_have_room_caps() {
     let rooms = manager(3, 2, Arc::new(FakeClock::at(0)));
-    rooms.create(&["a"]).unwrap();
-    rooms.create(&["a"]).unwrap();
-    assert_eq!(rooms.create(&["a"]).err(), Some(CreateError::OwnerLimit));
-    rooms.create(&["b"]).unwrap();
-    assert_eq!(rooms.create(&["c"]).err(), Some(CreateError::TooManyRooms));
+    rooms.create(by("a")).unwrap();
+    rooms.create(by("a")).unwrap();
+    assert_eq!(rooms.create(by("a")).err(), Some(CreateError::OwnerLimit));
+    rooms.create(by("b")).unwrap();
+    assert_eq!(rooms.create(by("c")).err(), Some(CreateError::TooManyRooms));
 }
 
 #[tokio::test]
-async fn a_room_counts_against_each_of_its_owners() {
+async fn a_room_counts_against_its_player_and_client() {
     let rooms = manager(10, 1, Arc::new(FakeClock::at(0)));
-    rooms.create(&["player-1", "203.0.113.7"]).unwrap();
+    rooms
+        .create(Creator {
+            player: "player-1",
+            client: "203.0.113.7",
+        })
+        .unwrap();
     assert_eq!(
-        rooms.create(&["player-2", "203.0.113.7"]).err(),
+        rooms
+            .create(Creator {
+                player: "player-2",
+                client: "203.0.113.7"
+            })
+            .err(),
         Some(CreateError::OwnerLimit),
         "same address, new session"
     );
     assert_eq!(
-        rooms.create(&["player-1", "198.51.100.1"]).err(),
+        rooms
+            .create(Creator {
+                player: "player-1",
+                client: "198.51.100.1"
+            })
+            .err(),
         Some(CreateError::OwnerLimit),
         "same session, new address"
     );
-    rooms.create(&["player-2", "198.51.100.1"]).unwrap();
+    rooms
+        .create(Creator {
+            player: "player-2",
+            client: "198.51.100.1",
+        })
+        .unwrap();
+}
+
+#[tokio::test]
+async fn room_creation_is_rate_limited_per_client() {
+    let clock = Arc::new(FakeClock::at(0));
+    let limiter = Arc::new(SlidingWindow::new(2, 60_000));
+    let full = sharing(1, 5, limiter.clone(), clock.clone());
+    let open = sharing(10, 5, limiter, clock.clone());
+    let from = |player| Creator {
+        player,
+        client: "203.0.113.7",
+    };
+    full.create(from("p1")).unwrap();
+    // Refused by a cap, so it doesn't use up the allowance.
+    assert_eq!(
+        full.create(from("p2")).err(),
+        Some(CreateError::TooManyRooms)
+    );
+    open.create(from("p3")).unwrap();
+    assert_eq!(
+        open.create(from("p4")).err(),
+        Some(CreateError::RateLimited)
+    );
+    open.create(Creator {
+        player: "p4",
+        client: "198.51.100.1",
+    })
+    .expect("other clients are unaffected");
+    clock.advance(60_000);
+    open.create(from("p4")).unwrap();
 }
 
 #[tokio::test]
 async fn rooms_are_found_and_listed_with_member_counts() {
     let rooms = manager(10, 2, Arc::new(FakeClock::at(0)));
-    let (id, handle) = rooms.create(&["a"]).unwrap();
+    let (id, handle) = rooms.create(by("a")).unwrap();
     handle
         .join(Member {
             id: PlayerId::new(1),
@@ -71,8 +150,8 @@ async fn rooms_are_found_and_listed_with_member_counts() {
 async fn empty_rooms_close_after_the_idle_period() {
     let clock = Arc::new(FakeClock::at(0));
     let rooms = manager(10, 5, clock.clone());
-    let (empty, _) = rooms.create(&["a"]).unwrap();
-    let (busy, handle) = rooms.create(&["a"]).unwrap();
+    let (empty, _) = rooms.create(by("a")).unwrap();
+    let (busy, handle) = rooms.create(by("a")).unwrap();
     handle
         .join(Member {
             id: PlayerId::new(1),
@@ -99,7 +178,7 @@ async fn empty_rooms_close_after_the_idle_period() {
 async fn a_member_joining_resets_the_countdown() {
     let clock = Arc::new(FakeClock::at(0));
     let rooms = manager(10, 5, clock.clone());
-    let (id, handle) = rooms.create(&["a"]).unwrap();
+    let (id, handle) = rooms.create(by("a")).unwrap();
     rooms.close_idle().await;
     clock.advance(EMPTY_CLOSE_MS - 1);
     handle
