@@ -2,6 +2,7 @@
 
 pub mod clock;
 pub mod config;
+pub mod connections;
 pub mod game_socket;
 pub mod guests;
 pub mod identity;
@@ -40,6 +41,8 @@ pub struct AppState {
     /// The only `Origin` allowed to open a game socket.
     pub public_origin: String,
     pub heartbeat: game_socket::Heartbeat,
+    /// Caps open game sockets per player and per client.
+    pub connections: Arc<connections::Connections>,
 }
 
 impl std::fmt::Debug for AppState {

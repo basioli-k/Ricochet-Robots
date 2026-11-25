@@ -25,12 +25,12 @@ async fn serve(app: Router) -> SocketAddr {
     addr
 }
 
-async fn open(
+fn request(
     addr: SocketAddr,
     room: &str,
     cookie: Option<&str>,
     origin: &str,
-) -> Result<Client, tungstenite::Error> {
+) -> tungstenite::handshake::client::Request {
     let mut request = format!("ws://{addr}/api/rooms/{room}/ws")
         .into_client_request()
         .unwrap();
@@ -42,7 +42,16 @@ async fn open(
     request
         .headers_mut()
         .insert("origin", origin.parse().unwrap());
-    tokio_tungstenite::connect_async(request)
+    request
+}
+
+async fn open(
+    addr: SocketAddr,
+    room: &str,
+    cookie: Option<&str>,
+    origin: &str,
+) -> Result<Client, tungstenite::Error> {
+    tokio_tungstenite::connect_async(request(addr, room, cookie, origin))
         .await
         .map(|(client, _)| client)
 }
@@ -281,4 +290,73 @@ async fn a_full_room_refuses_by_code() {
         recv(&mut bob).await,
         json!({ "type": "error", "code": "room_full" })
     );
+}
+
+#[tokio::test]
+async fn a_player_can_hold_only_so_many_sockets() {
+    // Both players connect from one client, whose cap stays out of the way.
+    let t = table(Limits {
+        sockets_per_player: 1,
+        ..Limits::default()
+    })
+    .await;
+    let (ana, _) = t.join(&t.ana).await;
+    let cookie = Some(t.ana.0.as_str());
+    assert_eq!(refused(t.addr, &t.room, cookie, ORIGIN).await, 429);
+    let _bob = t.join(&t.bob).await;
+    drop(ana);
+    // The place frees once the server notices the close.
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+    while open(t.addr, &t.room, cookie, ORIGIN).await.is_err() {
+        assert!(tokio::time::Instant::now() < deadline, "still refused");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+#[tokio::test]
+async fn an_oversized_message_closes_the_socket() {
+    let t = table(Limits::default()).await;
+    let (mut ana, _) = t.join(&t.ana).await;
+    let (mut bob, _) = t.join(&t.bob).await;
+    recv_type(&mut ana, "joined").await;
+    let huge = json!({ "type": "chat", "text": "x".repeat(5_000) });
+    let _ = bob.send(Message::Text(huge.to_string().into())).await;
+    assert_eq!(
+        recv_type(&mut ana, "left").await["player"],
+        t.bob.1.as_str()
+    );
+}
+
+#[tokio::test]
+async fn a_client_that_stops_reading_is_dropped() {
+    let t = table(Limits {
+        chats: 1_000_000,
+        ..Limits::default()
+    })
+    .await;
+    let (mut ana, _) = t.join(&t.ana).await;
+    // Bob's tiny receive buffer fills fast once he stops reading.
+    let socket = tokio::net::TcpSocket::new_v4().unwrap();
+    socket.set_recv_buffer_size(1024).unwrap();
+    let stream = MaybeTlsStream::Plain(socket.connect(t.addr).await.unwrap());
+    let (mut bob, _) =
+        tokio_tungstenite::client_async(request(t.addr, &t.room, Some(&t.bob.0), ORIGIN), stream)
+            .await
+            .unwrap();
+    assert_eq!(recv(&mut bob).await["type"], "snapshot");
+    recv_type(&mut ana, "joined").await;
+    let text = "y".repeat(200);
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
+    loop {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "Bob was never dropped"
+        );
+        send(&mut ana, json!({ "type": "chat", "text": text })).await;
+        let next = recv_where(&mut ana, |m| m["type"] == "chat" || m["type"] == "left").await;
+        if next["type"] == "left" {
+            assert_eq!(next["player"], t.bob.1.as_str());
+            break;
+        }
+    }
 }

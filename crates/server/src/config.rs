@@ -23,6 +23,9 @@ pub struct Config {
     pub chat_per_sec: usize,
     /// Bids and moves per player per second.
     pub actions_per_sec: usize,
+    /// Open game sockets per player, and per client address.
+    pub sockets_per_player: usize,
+    pub sockets_per_client: usize,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -61,6 +64,8 @@ impl Config {
             room_create_window_secs: limit(&var, "RR_ROOM_CREATE_WINDOW_SECS", 600)?,
             chat_per_sec: limit(&var, "RR_CHAT_PER_SEC", 1)?,
             actions_per_sec: limit(&var, "RR_ACTIONS_PER_SEC", 10)?,
+            sockets_per_player: limit(&var, "RR_SOCKETS_PER_PLAYER", 4)?,
+            sockets_per_client: limit(&var, "RR_SOCKETS_PER_CLIENT", 32)?,
         })
     }
 }
@@ -144,6 +149,7 @@ mod tests {
         assert_eq!(c.rooms, RoomLimits::default());
         assert_eq!((c.room_creates, c.room_create_window_secs), (5, 600));
         assert_eq!((c.chat_per_sec, c.actions_per_sec), (1, 10));
+        assert_eq!((c.sockets_per_player, c.sockets_per_client), (4, 32));
     }
 
     #[test]
@@ -179,6 +185,8 @@ mod tests {
             ("RR_ROOM_CREATE_WINDOW_SECS", "120"),
             ("RR_CHAT_PER_SEC", "2"),
             ("RR_ACTIONS_PER_SEC", "20"),
+            ("RR_SOCKETS_PER_PLAYER", "2"),
+            ("RR_SOCKETS_PER_CLIENT", "8"),
         ])
         .unwrap();
         assert_eq!(
@@ -191,6 +199,7 @@ mod tests {
         );
         assert_eq!((c.room_creates, c.room_create_window_secs), (3, 120));
         assert_eq!((c.chat_per_sec, c.actions_per_sec), (2, 20));
+        assert_eq!((c.sockets_per_player, c.sockets_per_client), (2, 8));
         assert_eq!((c.guest_starts, c.guest_window_secs), (7, 60));
         assert_eq!(c.bind, "0.0.0.0:9000".parse().unwrap());
         assert_eq!(c.database_url, "sqlite://other.db");
@@ -242,6 +251,8 @@ mod tests {
             "RR_ROOM_CREATE_WINDOW_SECS",
             "RR_CHAT_PER_SEC",
             "RR_ACTIONS_PER_SEC",
+            "RR_SOCKETS_PER_PLAYER",
+            "RR_SOCKETS_PER_CLIENT",
         ] {
             for bad in ["0", "-1", "five", ""] {
                 assert_eq!(

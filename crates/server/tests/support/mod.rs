@@ -14,6 +14,7 @@ use domain::{PlayerId, Timestamp, fixed_board};
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use server::clock::FakeClock;
+use server::connections::Connections;
 use server::game_socket::Heartbeat;
 use server::identity::CSRF_HEADER;
 use server::rate_limit::SlidingWindow;
@@ -37,6 +38,8 @@ pub struct Limits {
     /// Per second, per player.
     pub chats: usize,
     pub actions: usize,
+    pub sockets_per_player: usize,
+    pub sockets_per_client: usize,
 }
 
 impl Default for Limits {
@@ -47,6 +50,8 @@ impl Default for Limits {
             room_creates: 100,
             chats: 100,
             actions: 100,
+            sockets_per_player: 10,
+            sockets_per_client: 10,
         }
     }
 }
@@ -85,6 +90,10 @@ pub async fn apps_at(limits: Limits, clients: &[SocketAddr]) -> (Vec<Router>, Ar
             every: Duration::from_millis(100),
             timeout: Duration::from_secs(1),
         },
+        connections: Arc::new(Connections::new(
+            limits.sockets_per_player,
+            limits.sockets_per_client,
+        )),
     };
     let sessions = MemoryStore::default();
     let apps = clients
