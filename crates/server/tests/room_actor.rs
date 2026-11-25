@@ -238,10 +238,8 @@ async fn a_finished_game_is_recorded_once() {
     }
     room.tick().await.unwrap();
     // Recording runs as its own task; give it a moment.
-    let mut recorded = Vec::new();
     for _ in 0..100 {
-        recorded = results.recent_games(10).await.unwrap();
-        if !recorded.is_empty() {
+        if !results.recent_games(10).await.unwrap().is_empty() {
             break;
         }
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
