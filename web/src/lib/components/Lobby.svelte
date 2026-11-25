@@ -15,7 +15,7 @@
   const REFRESH_MS = 5_000;
 
   $effect(() => {
-    const timer = setInterval(() => void app.refresh(), REFRESH_MS);
+    const timer = setInterval(() => void app.poll(), REFRESH_MS);
     return () => {
       clearInterval(timer);
     };

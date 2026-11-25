@@ -7,7 +7,6 @@ export const i18n = $state({ locale: loadLocale(browserStore(), navigator.langua
 
 export function setLocale(locale: Locale): void {
   i18n.locale = locale;
-  document.documentElement.lang = locale;
   saveLocale(browserStore(), locale);
 }
 

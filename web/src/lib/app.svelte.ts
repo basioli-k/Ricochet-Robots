@@ -56,6 +56,20 @@ export class AppModel {
     });
   }
 
+  /**
+   * The lobby's background re-read: it never blocks the player's own
+   * actions and stays quiet on failure, except that an expired session
+   * still returns to the guest entry.
+   */
+  async poll(): Promise<void> {
+    if (this.busy) return;
+    try {
+      this.rooms = await this.api.rooms();
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'not_signed_in') this.signedOut();
+    }
+  }
+
   async openRoom(): Promise<void> {
     await this.run(async () => {
       const room = await this.api.openRoom();
@@ -70,6 +84,11 @@ export class AppModel {
 
   async backToLobby(): Promise<void> {
     await this.run(() => this.showLobby());
+  }
+
+  private signedOut(): void {
+    this.identity = null;
+    this.view = { name: 'guest' };
   }
 
   private async showLobby(): Promise<void> {
@@ -87,10 +106,7 @@ export class AppModel {
     } catch (e) {
       const code = e instanceof ApiError ? e.code : 'unknown';
       this.error = errorKey(code);
-      if (code === 'not_signed_in') {
-        this.identity = null;
-        this.view = { name: 'guest' };
-      }
+      if (code === 'not_signed_in') this.signedOut();
     } finally {
       this.busy = false;
     }

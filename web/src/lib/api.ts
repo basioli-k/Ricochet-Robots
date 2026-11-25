@@ -35,7 +35,7 @@ export class Api {
 
   async startGuest(nickname: string): Promise<Started> {
     const body: StartGuest = { nickname };
-    const started = await this.request<Started>('POST', '/api/guest', body);
+    const started = await this.post<Started>('/api/guest', body);
     this.csrf = started.csrf;
     return started;
   }
@@ -45,7 +45,24 @@ export class Api {
   }
 
   openRoom(): Promise<RoomCreated> {
-    return this.request<RoomCreated>('POST', '/api/rooms');
+    return this.post<RoomCreated>('/api/rooms');
+  }
+
+  /**
+   * A state-changing request. The token belongs to one session, so when
+   * there is none yet (the first load failed) or the server says it no
+   * longer matches (the session expired and a new one began), a fresh
+   * token is fetched and the request sent once more.
+   */
+  private async post<T>(path: string, body?: unknown): Promise<T> {
+    if (this.csrf === '') await this.session();
+    try {
+      return await this.request<T>('POST', path, body);
+    } catch (e) {
+      if (!(e instanceof ApiError) || e.code !== 'csrf_mismatch') throw e;
+      await this.session();
+      return this.request<T>('POST', path, body);
+    }
   }
 
   private async request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {

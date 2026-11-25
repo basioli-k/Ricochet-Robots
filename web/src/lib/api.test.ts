@@ -47,6 +47,38 @@ describe('Api', () => {
     expect(room?.init?.credentials).toBe('same-origin');
   });
 
+  it('renews a stale token once and retries', async () => {
+    const fetch = scripted(
+      json({ csrf: 'old', identity: null }),
+      json({ error: 'csrf_mismatch' }, 403),
+      json({ csrf: 'new', identity: null }),
+      json({ identity: ana, csrf: 'after' }),
+    );
+    const api = new Api(fetch);
+    await api.session();
+    expect((await api.startGuest('Ana1')).csrf).toBe('after');
+    expect(fetch.calls.map((c) => c.path)).toEqual([
+      '/api/session',
+      '/api/guest',
+      '/api/session',
+      '/api/guest',
+    ]);
+    expect(header(fetch.calls[3], 'x-csrf-token')).toBe('new');
+  });
+
+  it('fetches a token first when it has none, and gives up after one retry', async () => {
+    const fetch = scripted(
+      json({ csrf: 'fresh', identity: null }),
+      json({ error: 'csrf_mismatch' }, 403),
+      json({ csrf: 'again', identity: null }),
+      json({ error: 'csrf_mismatch' }, 403),
+    );
+    const api = new Api(fetch);
+    await expect(api.openRoom()).rejects.toEqual(new ApiError('csrf_mismatch', 403));
+    expect(header(fetch.calls[1], 'x-csrf-token')).toBe('fresh');
+    expect(fetch.calls).toHaveLength(4);
+  });
+
   it('lists rooms', async () => {
     const api = new Api(scripted(json([{ id: 'x', members: 2 }])));
     expect(await api.rooms()).toEqual([{ id: 'x', members: 2 }]);

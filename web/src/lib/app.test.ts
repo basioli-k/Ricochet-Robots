@@ -90,6 +90,38 @@ describe('AppModel', () => {
     expect(app.error).toBe('errorNetwork');
   });
 
+  it('polls the lobby quietly and never blocks the player', async () => {
+    let failing = false;
+    const app = new AppModel(
+      fakeApi({
+        session: () => Promise.resolve({ csrf: 'c', identity: ana }),
+        rooms: () => (failing ? Promise.reject(new ApiError('network', 0)) : Promise.resolve([room])),
+      }),
+    );
+    await app.start();
+    app.error = 'errorRoomLimit';
+    failing = true;
+    await app.poll();
+    // A failed poll neither clears the message nor adds its own.
+    expect(app.error).toBe('errorRoomLimit');
+    expect(app.busy).toBe(false);
+  });
+
+  it('leaves the lobby from a poll when the session has expired', async () => {
+    let expired = false;
+    const app = new AppModel(
+      fakeApi({
+        session: () => Promise.resolve({ csrf: 'c', identity: ana }),
+        rooms: () =>
+          expired ? Promise.reject(new ApiError('not_signed_in', 401)) : Promise.resolve([room]),
+      }),
+    );
+    await app.start();
+    expired = true;
+    await app.poll();
+    expect(app.view).toEqual({ name: 'guest' });
+  });
+
   it('runs one action at a time', async () => {
     let release = () => {};
     const app = new AppModel(

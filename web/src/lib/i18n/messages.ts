@@ -26,6 +26,8 @@ export const en = {
   errorNotSignedIn: 'Your session has expired. Please start again.',
   errorCsrfMismatch: 'Your session changed. Please reload the page.',
   errorNetwork: 'Can’t reach the server. Check your connection.',
+  errorRoomNotFound: 'That room has closed.',
+  errorTooManyConnections: 'Too many open game tabs. Close one and try again.',
   errorUnknown: 'Something went wrong. Please try again.',
 } as const;
 
@@ -59,5 +61,7 @@ export const hr: Messages = {
   errorNotSignedIn: 'Sesija je istekla. Kreni ispočetka.',
   errorCsrfMismatch: 'Sesija se promijenila. Ponovno učitaj stranicu.',
   errorNetwork: 'Poslužitelj nije dostupan. Provjeri vezu.',
+  errorRoomNotFound: 'Ta je soba zatvorena.',
+  errorTooManyConnections: 'Previše otvorenih kartica igre. Zatvori jednu i pokušaj ponovno.',
   errorUnknown: 'Nešto je pošlo po zlu. Pokušaj ponovno.',
 };

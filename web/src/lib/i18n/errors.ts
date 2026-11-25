@@ -14,6 +14,8 @@ const byCode: Readonly<Record<string, MessageKey>> = {
   not_signed_in: 'errorNotSignedIn',
   csrf_mismatch: 'errorCsrfMismatch',
   network: 'errorNetwork',
+  room_not_found: 'errorRoomNotFound',
+  too_many_connections: 'errorTooManyConnections',
 };
 
 export function errorKey(code: string): MessageKey {

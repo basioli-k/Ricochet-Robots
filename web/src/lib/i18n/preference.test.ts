@@ -58,6 +58,8 @@ describe('error messages', () => {
       'not_signed_in',
       'csrf_mismatch',
       'network',
+      'room_not_found',
+      'too_many_connections',
     ]) {
       expect(errorKey(code)).not.toBe('errorUnknown');
       expect(en[errorKey(code)]).toBeTruthy();
