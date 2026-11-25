@@ -39,6 +39,8 @@ export class GameModel {
   private socket: Socket | null = null;
   /** Reconnect when the current socket closes (it fell behind). */
   private rejoin = false;
+  /** The pending reconnect; leaving or connecting again cancels it. */
+  private rejoinTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly url: string,
@@ -46,6 +48,7 @@ export class GameModel {
   ) {}
 
   connect(): void {
+    this.cancelRejoin();
     this.socket?.close();
     this.status = 'connecting';
     const socket = this.makeSocket(this.url);
@@ -72,8 +75,9 @@ export class GameModel {
       // pause, so a client that keeps falling behind doesn't spin.
       if (this.rejoin) {
         this.rejoin = false;
-        setTimeout(() => {
-          if (this.status === 'closed' && this.socket === null) this.connect();
+        this.rejoinTimer = setTimeout(() => {
+          this.rejoinTimer = null;
+          this.connect();
         }, REJOIN_DELAY_MS);
       }
     };
@@ -128,10 +132,16 @@ export class GameModel {
   leave(): void {
     this.send({ type: 'leave' });
     this.rejoin = false;
+    this.cancelRejoin();
     const socket = this.socket;
     this.socket = null;
     this.status = 'closed';
     socket?.close();
+  }
+
+  private cancelRejoin(): void {
+    if (this.rejoinTimer !== null) clearTimeout(this.rejoinTimer);
+    this.rejoinTimer = null;
   }
 
   private send(message: ClientMessage): void {

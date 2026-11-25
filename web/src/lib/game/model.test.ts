@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ServerMessage } from '../../protocol/ServerMessage';
 import { GameModel, REJOIN_DELAY_MS, socketUrl, type Socket } from './model.svelte';
 
@@ -57,6 +57,10 @@ describe('socketUrl', () => {
       'ws://localhost:5173/api/rooms/a%2Fb/ws',
     );
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('GameModel', () => {
@@ -172,7 +176,24 @@ describe('GameModel', () => {
     vi.advanceTimersByTime(REJOIN_DELAY_MS);
     expect(sockets).toHaveLength(2);
     expect(game.status).toBe('closed');
-    vi.useRealTimers();
+  });
+
+  it('does not rejoin a room the player left while waiting to reconnect', () => {
+    vi.useFakeTimers();
+    const sockets: FakeSocket[] = [];
+    const game = new GameModel('ws://x', () => {
+      const socket = new FakeSocket();
+      sockets.push(socket);
+      return socket;
+    });
+    game.connect();
+    sockets[0]?.onopen?.(new Event('open'));
+    sockets[0]?.server({ type: 'error', code: 'lagged' });
+    sockets[0]?.onclose?.(new Event('close') as CloseEvent);
+    game.leave();
+    vi.advanceTimersByTime(REJOIN_DELAY_MS * 2);
+    expect(sockets).toHaveLength(1);
+    expect(game.status).toBe('closed');
   });
 
   it('keeps a chat message that could not be sent', () => {

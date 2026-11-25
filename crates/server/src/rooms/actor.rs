@@ -153,7 +153,9 @@ impl RoomHandle {
         Self { commands, events }
     }
 
-    /// A stream of everything that happens in the room from now on.
+    /// A stream of everything that happens in the room from now on. To
+    /// show a player the room, use [`Self::watch`] instead: it pairs the
+    /// stream with a snapshot so nothing is missed or repeated.
     #[must_use]
     pub fn subscribe(&self) -> broadcast::Receiver<RoomEvent> {
         self.events.subscribe()
