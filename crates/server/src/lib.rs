@@ -12,6 +12,7 @@ pub mod protocol;
 pub mod rate_limit;
 pub mod rooms;
 pub mod sessions;
+pub mod web;
 
 use std::sync::Arc;
 

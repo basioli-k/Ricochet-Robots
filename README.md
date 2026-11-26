@@ -16,6 +16,17 @@ pipx install pre-commit && pre-commit install   # gitleaks on every commit
 `--recurse-submodules`, and ask the repository owner for access if you need
 the rules.
 
+### Running the whole app
+
+```bash
+(cd web && npm ci --ignore-scripts && npm run build)   # writes web/dist
+cargo run -p server                                    # http://localhost:8080
+```
+
+The server serves the built client from `RR_WEB_DIR` (default `web/dist`)
+next to the API; settings are listed in `.env.example`. For development,
+run `npm run dev` in `web/` instead and open http://localhost:5173.
+
 ### Rust workspace (`crates/`)
 
 Needs `rustup`.

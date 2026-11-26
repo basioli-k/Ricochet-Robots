@@ -10,8 +10,8 @@ use server::game_socket::Heartbeat;
 use server::rate_limit::SlidingWindow;
 use server::rooms::actor::RandomShuffler;
 use server::rooms::manager::RoomManager;
-use server::sessions;
 use server::{AppState, app};
+use server::{sessions, web};
 use storage::SqliteStore;
 use tower_sessions_core::ExpiredDeletion;
 
@@ -88,9 +88,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
     tracing::info!(address = %config.bind, "listening");
+    let mut router = app(state, sessions::layer(session_store, https));
+    let web_dir = std::path::Path::new(&config.web_dir);
+    if web_dir.join("index.html").is_file() {
+        router = web::with_web(router, web_dir);
+    } else {
+        tracing::warn!(dir = %config.web_dir, "no built web client; serving the API only");
+    }
     // Connection info gives handlers the client IP for rate limits.
-    let service = app(state, sessions::layer(session_store, https))
-        .into_make_service_with_connect_info::<std::net::SocketAddr>();
+    let service = router.into_make_service_with_connect_info::<std::net::SocketAddr>();
     axum::serve(listener, service)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
