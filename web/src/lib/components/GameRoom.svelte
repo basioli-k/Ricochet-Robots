@@ -135,7 +135,8 @@
           </div>
 
           {#if secondsLeft !== null}
-            <p class="clock" class:hurry={secondsLeft <= HURRY_S}>
+            <!-- Ticks every second: kept out of the status announcements. -->
+            <p class="clock" class:hurry={secondsLeft <= HURRY_S} aria-live="off">
               {t('timeLeft', { seconds: secondsLeft })}
             </p>
           {/if}
@@ -401,12 +402,12 @@
   }
   .pickers {
     display: grid;
-    grid-template-columns: repeat(2, 2.4rem);
+    grid-template-columns: repeat(2, 2.75rem);
     gap: 0.5rem;
   }
   .pick {
-    width: 2.4rem;
-    height: 2.4rem;
+    width: 2.75rem;
+    height: 2.75rem;
     padding: 0;
     border-radius: 50%;
     background: var(--robot);
