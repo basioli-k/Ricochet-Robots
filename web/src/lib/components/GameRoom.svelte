@@ -35,11 +35,14 @@
     round?.deadline == null ? null : Math.max(0, Math.ceil((round.deadline - now) / 1000)),
   );
   const directions: { dir: Dir; label: 'moveUp' | 'moveDown' | 'moveLeft' | 'moveRight'; arrow: string }[] = [
-    { dir: 'up', label: 'moveUp', arrow: '↑' },
-    { dir: 'left', label: 'moveLeft', arrow: '←' },
-    { dir: 'down', label: 'moveDown', arrow: '↓' },
-    { dir: 'right', label: 'moveRight', arrow: '→' },
+    { dir: 'up', label: 'moveUp', arrow: '▲' },
+    { dir: 'left', label: 'moveLeft', arrow: '◀' },
+    { dir: 'down', label: 'moveDown', arrow: '▼' },
+    { dir: 'right', label: 'moveRight', arrow: '▶' },
   ];
+
+  /** Seconds left at which the countdown turns urgent. */
+  const HURRY_S = 10;
 
   function onkeydown(event: KeyboardEvent) {
     const typing = isTyping(event.target instanceof Element ? event.target.tagName : undefined);
@@ -82,49 +85,66 @@
           game.select(robot);
         }}
       />
+      <p class="hint">{t('keyboardHint')}</p>
     {:else}
-      <p>{t('connecting')}</p>
+      <div class="card loading"><p class="muted">{t('connecting')}</p></div>
     {/if}
   </div>
 
   <aside>
-    <p class="code">{t('roomCode', { code: id.slice(0, 6) })}</p>
+    <div class="room-bar">
+      <span class="status-dot" class:live={game.status === 'open'} aria-hidden="true"></span>
+      <span class="code">{t('roomCode', { code: id.slice(0, 6) })}</span>
+      <button class="secondary small" onclick={leave}>{t('leaveRoom')}</button>
+    </div>
+
     {#if game.error}
       <p class="error" role="alert">{t(game.error)}</p>
     {/if}
     {#if game.status === 'closed'}
       <p class="error" role="alert">
         {t('disconnected')}
-        <button onclick={() => {
+        <button class="small" onclick={() => {
           game.connect();
         }}>{t('reconnect')}</button>
       </p>
     {/if}
 
     {#if view}
-      <section class="status" aria-live="polite">
+      <section class="card status" aria-live="polite">
         {#if !round}
-          <p>{t('phaseWaiting')}</p>
-          <button onclick={() => {
+          <p class="phase">{t('phaseWaiting')}</p>
+          <button class="wide" onclick={() => {
             game.start();
           }}>{t('startGame')}</button>
         {:else}
-          <p class="target">
-            {t('target')}:
-            <span class="glyph {round.target.kind === 'colored' ? round.target.robot : 'vortex'}"
+          <div class="target-row">
+            <span class="target-chip {round.target.kind === 'colored' ? round.target.robot : 'vortex'}"
               >{targetGlyph(round.target)}</span
             >
-            {#if round.target.kind === 'colored'}
-              {t(robotName[round.target.robot])} · {t(shapeName[round.target.shape])}
-            {:else}
-              {t('vortex')}
-            {/if}
-          </p>
+            <div>
+              <h3>{t('target')}</h3>
+              <p class="target-name">
+                {#if round.target.kind === 'colored'}
+                  {t(robotName[round.target.robot])} · {t(shapeName[round.target.shape])}
+                {:else}
+                  {t('vortex')}
+                {/if}
+              </p>
+            </div>
+          </div>
+
+          {#if secondsLeft !== null}
+            <p class="clock" class:hurry={secondsLeft <= HURRY_S}>
+              {t('timeLeft', { seconds: secondsLeft })}
+            </p>
+          {/if}
+
           {#if round.over}
-            <p><strong>{t('gameOver')}</strong></p>
+            <p class="phase"><strong>{t('gameOver')}</strong></p>
           {:else if round.phase.kind === 'bidding'}
-            <p>{t('phaseBidding')}</p>
-            <form class="inline" onsubmit={placeBid}>
+            <p class="phase">{t('phaseBidding')}</p>
+            <form class="bid" onsubmit={placeBid}>
               <label>
                 {t('bidLabel')}
                 <input type="number" min="1" max="255" bind:value={bid} name="bid" required />
@@ -133,47 +153,48 @@
             </form>
           {:else if round.phase.kind === 'demonstrating'}
             {#if game.demonstrating}
-              <p><strong>{t('yourTurn')}</strong></p>
-              <div class="pad">
-                {#each directions as { dir, label, arrow } (dir)}
-                  <button aria-label={t(label)} onclick={() => {
-                    game.move(dir);
-                  }}>{arrow}</button>
-                {/each}
+              <p class="phase"><strong>{t('yourTurn')}</strong></p>
+              <div class="controls">
+                <div class="pad">
+                  {#each directions as { dir, label, arrow } (dir)}
+                    <button class="dir {dir}" aria-label={t(label)} onclick={() => {
+                      game.move(dir);
+                    }}>{arrow}</button>
+                  {/each}
+                </div>
+                <div class="pickers">
+                  {#each ROBOTS as robot (robot)}
+                    <button
+                      class="pick {robot}"
+                      aria-label={t(robotName[robot])}
+                      aria-pressed={game.selected === robot}
+                      onclick={() => {
+                        game.select(robot);
+                      }}
+                    ></button>
+                  {/each}
+                </div>
               </div>
-              <p class="robots">
-                {#each ROBOTS as robot (robot)}
-                  <button
-                    class="pick {robot}"
-                    aria-pressed={game.selected === robot}
-                    onclick={() => {
-                      game.select(robot);
-                    }}>{t(robotName[robot])}</button
-                  >
-                {/each}
-              </p>
-              <button onclick={() => {
+              <button class="secondary" onclick={() => {
                 game.concede();
               }}>{t('concede')}</button>
             {:else}
-              <p>{t('demonstratingOther', { name: nameOf(view, round.phase.player) })}</p>
+              <p class="phase">{t('demonstratingOther', { name: nameOf(view, round.phase.player) })}</p>
             {/if}
-            <p>{t('movesMade')}: {round.phase.moves_made} / {round.phase.bid}</p>
+            <p class="moves">{t('movesMade')}: {round.phase.moves_made} / {round.phase.bid}</p>
           {:else if round.phase.kind === 'solved'}
-            <p><strong>{t('roundSolved', { name: nameOf(view, round.phase.winner) })}</strong></p>
-            <p>{t('movesMade')}: {round.phase.moves}</p>
-            <p>{t('nextRound')}</p>
+            <p class="phase result"><strong>{t('roundSolved', { name: nameOf(view, round.phase.winner) })}</strong></p>
+            <p class="moves">{t('movesMade')}: {round.phase.moves}</p>
+            <p class="muted">{t('nextRound')}</p>
           {:else}
-            <p><strong>{t('roundUnsolved')}</strong></p>
-            <p>{t('nextRound')}</p>
+            <p class="phase result"><strong>{t('roundUnsolved')}</strong></p>
+            <p class="muted">{t('nextRound')}</p>
           {/if}
-          {#if secondsLeft !== null}
-            <p class="clock">{t('timeLeft', { seconds: secondsLeft })}</p>
-          {/if}
+
           {#if round.phase.kind === 'bidding' || round.phase.kind === 'demonstrating'}
             <h3>{t('bidsTitle')}</h3>
             {#if round.bids.length === 0}
-              <p>{t('noBidsYet')}</p>
+              <p class="muted">{t('noBidsYet')}</p>
             {:else}
               <ol class="bids">
                 {#each round.bids as b (b.player)}
@@ -185,29 +206,32 @@
         {/if}
       </section>
 
-      <section>
+      <section class="card">
         <h3>{t('scoresTitle')}</h3>
         <ul class="scores">
           {#each standings(view) as score (score.player)}
             <li>
-              <span>
+              <span class="avatar" aria-hidden="true">{nameOf(view, score.player).slice(0, 1)}</span>
+              <span class="name">
                 {nameOf(view, score.player)}
                 {#if score.player === view.you}<span class="badge">{t('you')}</span>{/if}
               </span>
-              <strong>{score.tokens}</strong>
+              <strong class="tokens">{score.tokens}</strong>
             </li>
           {/each}
         </ul>
       </section>
 
-      <section class="chat">
+      <section class="card chat">
         <h3>{t('chatTitle')}</h3>
         <ul>
           {#each view.chat as line, i (i)}
-            <li><strong>{nameOf(view, line.player)}:</strong> {line.text}</li>
+            <li class:mine={line.player === view.you}>
+              <strong>{nameOf(view, line.player)}:</strong> {line.text}
+            </li>
           {/each}
         </ul>
-        <form class="inline" onsubmit={sendChat}>
+        <form class="send" onsubmit={sendChat}>
           <input
             bind:value={message}
             name="chat"
@@ -219,104 +243,256 @@
         </form>
       </section>
     {/if}
-
-    <p class="hint">{t('keyboardHint')}</p>
-    <button onclick={leave}>{t('leaveRoom')}</button>
   </aside>
 </div>
 
 <style>
   .game {
     display: grid;
-    gap: 1rem;
-    grid-template-columns: minmax(0, 2fr) minmax(15rem, 1fr);
+    gap: 1.25rem;
+    grid-template-columns: minmax(0, 40rem) minmax(17rem, 24rem);
+    justify-content: center;
     align-items: start;
   }
-  @media (max-width: 52rem) {
+  @media (max-width: 62rem) {
     .game {
-      grid-template-columns: minmax(0, 1fr);
+      grid-template-columns: minmax(0, 40rem);
     }
+  }
+  /* Grid items may shrink below their content's width on narrow screens. */
+  .play,
+  aside {
+    min-width: 0;
+  }
+  .play {
+    display: grid;
+    gap: 0.5rem;
+  }
+  .hint {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+  }
+  .loading {
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
   }
   aside {
     display: grid;
-    gap: 0.75rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.9rem;
   }
-  h3 {
-    margin: 0 0 0.5rem;
-    font-size: 1rem;
+  aside .error {
+    margin: 0;
   }
-  .inline {
+  .room-bar {
     display: flex;
-    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+  }
+  .code {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    flex: 1;
+  }
+  .status-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .status-dot.live {
+    background: var(--ok);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent);
+  }
+  button.small {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.85rem;
+  }
+  .card p {
+    margin: 0;
+  }
+  .status {
+    display: grid;
+    gap: 0.85rem;
+  }
+  .phase {
+    font-size: 1.05rem;
+  }
+  .result {
+    font-size: 1.2rem;
+  }
+  .wide {
+    width: 100%;
+  }
+  .target-row {
+    display: flex;
+    gap: 0.8rem;
+    align-items: center;
+  }
+  .target-chip {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 12px;
+    font-size: 1.7rem;
+    line-height: 1;
+    color: #fff;
+    background: var(--robot);
+    flex: none;
+  }
+  .target-chip.vortex {
+    color: var(--surface);
+  }
+  .target-name {
+    font-weight: 600;
+  }
+  .clock {
+    font-size: 1.6rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .clock.hurry {
+    color: var(--danger-text);
+  }
+  .bid {
+    display: flex;
     gap: 0.5rem;
     align-items: end;
   }
-  .inline input {
+  .bid label {
     flex: 1;
-    min-width: 5rem;
   }
-  .pad {
-    display: grid;
-    grid-template-columns: repeat(4, 2.5rem);
-    gap: 0.25rem;
-  }
-  .robots {
+  .controls {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem;
+    gap: 1rem 1.5rem;
+    align-items: center;
+  }
+  /* The direction pad as a cross: up on top, left-down-right below. */
+  .pad {
+    display: grid;
+    grid-template-columns: repeat(3, 2.75rem);
+    grid-template-rows: repeat(2, 2.75rem);
+    gap: 0.3rem;
+  }
+  .dir {
+    padding: 0;
+    font-size: 1rem;
+  }
+  .dir.up {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .dir.left {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .dir.down {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .dir.right {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .pickers {
+    display: grid;
+    grid-template-columns: repeat(2, 2.4rem);
+    gap: 0.5rem;
+  }
+  .pick {
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--robot);
+    box-shadow: inset 0 -3px 4px rgb(0 0 0 / 20%);
+  }
+  .pick:hover:not(:disabled) {
+    background: var(--robot);
   }
   .pick[aria-pressed='true'] {
-    outline: 3px solid var(--text);
+    box-shadow:
+      0 0 0 3px var(--surface),
+      0 0 0 6px var(--robot);
   }
-  .pick.red {
-    background: var(--red);
+  .moves {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
-  .pick.blue {
-    background: var(--blue);
-  }
-  .pick.green {
-    background: var(--green);
-  }
-  .pick.yellow {
-    background: var(--yellow);
-    color: #222;
-  }
-  .glyph.red {
-    color: var(--red);
-  }
-  .glyph.blue {
-    color: var(--blue);
-  }
-  .glyph.green {
-    color: var(--green);
-  }
-  .glyph.yellow {
-    color: var(--yellow);
-  }
-  .bids,
-  .scores,
-  .chat ul {
+  .bids {
     margin: 0;
-    padding-left: 1.25rem;
+    padding-left: 1.4rem;
+    display: grid;
+    gap: 0.2rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .bids li:first-child {
+    font-weight: 700;
   }
   .scores {
     list-style: none;
+    margin: 0.6rem 0 0;
     padding: 0;
+    display: grid;
+    gap: 0.5rem;
   }
   .scores li {
     display: flex;
-    gap: 0.5rem;
-    justify-content: space-between;
+    gap: 0.6rem;
+    align-items: center;
+  }
+  .avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-weight: 700;
+    text-transform: uppercase;
+    flex: none;
+  }
+  .name {
+    flex: 1;
+  }
+  .tokens {
+    font-size: 1.1rem;
+    font-variant-numeric: tabular-nums;
   }
   .chat ul {
     list-style: none;
+    margin: 0.6rem 0;
     padding: 0;
-    max-height: 12rem;
+    display: grid;
+    gap: 0.4rem;
+    max-height: 14rem;
     overflow-y: auto;
     overflow-wrap: anywhere;
   }
-  .hint {
-    color: var(--muted);
-    font-size: 0.85rem;
+  .chat li {
+    background: var(--surface-2);
+    border-radius: 12px 12px 12px 4px;
+    padding: 0.4rem 0.7rem;
+    justify-self: start;
+    max-width: 90%;
+  }
+  .chat li.mine {
+    background: var(--accent-soft);
+    border-radius: 12px 12px 4px 12px;
+    justify-self: end;
+  }
+  .send {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .send input {
+    flex: 1;
+    min-width: 0;
   }
 </style>
