@@ -93,9 +93,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - run: docker build -t ricochet-robots .
       # The container must start, answer health checks and serve the client.
-      # Starting a session writes to SQLite in /data as the unprivileged user.
+      # The server creates its SQLite database in /data as the unprivileged
+      # user, and a session start is stored there.
       - name: Smoke-test the image
         run: |
           docker run -d --name rr -p 8080:8080 ricochet-robots

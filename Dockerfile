@@ -22,7 +22,9 @@ WORKDIR /src
 # Use the image's toolchain without rustup re-checking components online.
 # Keep this, the image tag and rust-toolchain.toml on one version.
 ENV RUSTUP_TOOLCHAIN=1.97.1
-COPY . .
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY crates crates
+COPY migrations migrations
 RUN cargo build --release --locked -p server
 
 FROM debian:bookworm-20261104-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc

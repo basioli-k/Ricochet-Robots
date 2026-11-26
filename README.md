@@ -36,7 +36,10 @@ the game socket accepts, and HTTPS there turns on Secure cookies: set it to
 the address players use, e.g. `-e RR_PUBLIC_BASE_URL=https://your.host` (or
 `http://192.168.1.10:8080` on a LAN). Don't put
 a reverse proxy in front yet: per-client limits key on the connecting
-address (see `.env.example`).
+address (see `.env.example`). Docker's port publishing can hide that address
+too (Docker Desktop, rootless Docker): there, run with `--network host`.
+A bind-mounted `/data` directory must be writable by uid 999; a named volume
+like `rr-data` gets the right owner by itself.
 
 The server serves the built client from `RR_WEB_DIR` (default `web/dist`)
 next to the API; settings are listed in `.env.example`. For development,

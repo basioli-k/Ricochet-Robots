@@ -1,10 +1,19 @@
-# Only sources go into the build context.
+# Mirrors .gitignore at every depth: secrets, local databases and build
+# output never enter the build context (the stages also copy only what
+# they build from).
+**/.env
+**/.env.*
+!.env.example
+**/*.pem
+**/*.key
+**/*.db
+**/*.db-*
+**/*.sqlite
+**/*.sqlite3
+**/__pycache__
+**/node_modules
 .git
 target
-web/node_modules
 web/dist
 web/test-results
 web/playwright-report
-*.db
-*.db-*
-.env
