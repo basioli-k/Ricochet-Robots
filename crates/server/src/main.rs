@@ -89,11 +89,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
     tracing::info!(address = %config.bind, "listening");
     let mut router = app(state, sessions::layer(session_store, https));
-    let web_dir = std::path::Path::new(&config.web_dir);
-    if web_dir.join("index.html").is_file() {
-        router = web::with_web(router, web_dir);
+    if config.web_dir.join("index.html").is_file() {
+        router = web::with_web(router, &config.web_dir);
     } else {
-        tracing::warn!(dir = %config.web_dir, "no built web client; serving the API only");
+        let dir = config.web_dir.display();
+        tracing::warn!(%dir, "no built web client; serving the API only");
     }
     // Connection info gives handlers the client IP for rate limits.
     let service = router.into_make_service_with_connect_info::<std::net::SocketAddr>();
