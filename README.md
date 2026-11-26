@@ -31,8 +31,10 @@ docker build -t ricochet-robots .
 docker run -p 8080:8080 -v rr-data:/data ricochet-robots
 ```
 
-Behind HTTPS, also pass `-e RR_PUBLIC_BASE_URL=https://your.host`: it turns
-on Secure cookies and is the only Origin the game socket accepts. Don't put
+`RR_PUBLIC_BASE_URL` (default `http://localhost:8080`) is the only Origin
+the game socket accepts, and HTTPS there turns on Secure cookies: set it to
+the address players use, e.g. `-e RR_PUBLIC_BASE_URL=https://your.host` (or
+`http://192.168.1.10:8080` on a LAN). Don't put
 a reverse proxy in front yet: per-client limits key on the connecting
 address (see `.env.example`).
 

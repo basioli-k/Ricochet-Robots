@@ -90,6 +90,8 @@ ricochet-robots/
 │   └── server/                # axum HTTP + WebSocket, rooms, Google/guest auth
 ├── web/                       # Svelte 5 + TypeScript (strict) + Vite client
 ├── migrations/                # SQLx migrations
+├── tools/                     # dependency-age check, legacy board oracle
+├── Dockerfile                 # one image: server + built client
 └── .agents/standards/         # submodule
 ```
 

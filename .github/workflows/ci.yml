@@ -95,11 +95,15 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - run: docker build -t ricochet-robots .
       # The container must start, answer health checks and serve the client.
+      # Starting a session writes to SQLite in /data as the unprivileged user.
       - name: Smoke-test the image
         run: |
           docker run -d --name rr -p 8080:8080 ricochet-robots
-          for _ in $(seq 1 30); do curl -sf localhost:8080/health && break; sleep 1; done
-          curl -sf localhost:8080/health
-          curl -sf localhost:8080/ | grep -q '<div id="app">'
+          for _ in $(seq 1 30); do curl -sf --max-time 5 localhost:8080/health && break; sleep 1; done
+          curl -sf --max-time 5 localhost:8080/health
+          curl -sf --max-time 5 localhost:8080/ | grep -q '<div id="app">'
+          curl -sf --max-time 5 localhost:8080/api/session | grep -q '"csrf"'
+          docker exec rr test -s /data/ricochet.db
           test "$(docker exec rr id -u)" != 0
-
+      - if: failure()
+        run: docker ps -a && docker logs rr
