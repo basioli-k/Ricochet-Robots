@@ -1,14 +1,14 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import type { Dir } from '../../protocol/Dir';
   import type { Robot } from '../../protocol/Robot';
   import type { AppModel } from '../app.svelte';
-  import { robotName, ROBOTS, shapeName, targetGlyph } from '../game/board';
+  import { robotName, shapeName, targetGlyph } from '../game/board';
   import { isTyping, keyAction } from '../game/keys';
   import { GameModel, socketUrl } from '../game/model.svelte';
   import { nameOf, standings } from '../game/state';
   import { t } from '../i18n/locale.svelte';
   import BoardView from './BoardView.svelte';
+  import Controller from './Controller.svelte';
 
   let { app, id }: { app: AppModel; id: string } = $props();
 
@@ -34,13 +34,6 @@
   const secondsLeft = $derived(
     round?.deadline == null ? null : Math.max(0, Math.ceil((round.deadline - now) / 1000)),
   );
-  const directions: { dir: Dir; label: 'moveUp' | 'moveDown' | 'moveLeft' | 'moveRight'; arrow: string }[] = [
-    { dir: 'up', label: 'moveUp', arrow: '▲' },
-    { dir: 'left', label: 'moveLeft', arrow: '◀' },
-    { dir: 'down', label: 'moveDown', arrow: '▼' },
-    { dir: 'right', label: 'moveRight', arrow: '▶' },
-  ];
-
   /** Seconds left at which the countdown turns urgent. */
   const HURRY_S = 10;
 
@@ -73,7 +66,7 @@
 
 <svelte:window {onkeydown} />
 
-<div class="game">
+<div class="game" class:docked={game.demonstrating}>
   <div class="play">
     {#if view}
       <BoardView
@@ -85,7 +78,8 @@
           game.select(robot);
         }}
       />
-      <p class="hint">{t('keyboardHint')}</p>
+      <p class="hint keys">{t('keyboardHint')}</p>
+      <p class="hint touch">{t('touchHint')}</p>
     {:else}
       <div class="card loading"><p class="muted">{t('connecting')}</p></div>
     {/if}
@@ -155,30 +149,12 @@
           {:else if round.phase.kind === 'demonstrating'}
             {#if game.demonstrating}
               <p class="phase"><strong>{t('yourTurn')}</strong></p>
-              <div class="controls">
-                <div class="pad">
-                  {#each directions as { dir, label, arrow } (dir)}
-                    <button class="dir {dir}" aria-label={t(label)} onclick={() => {
-                      game.move(dir);
-                    }}>{arrow}</button>
-                  {/each}
-                </div>
-                <div class="pickers">
-                  {#each ROBOTS as robot (robot)}
-                    <button
-                      class="pick {robot}"
-                      aria-label={t(robotName[robot])}
-                      aria-pressed={game.selected === robot}
-                      onclick={() => {
-                        game.select(robot);
-                      }}
-                    ></button>
-                  {/each}
-                </div>
+              <div class="wide-only">
+                <Controller {game} />
+                <button class="secondary" onclick={() => {
+                  game.concede();
+                }}>{t('concede')}</button>
               </div>
-              <button class="secondary" onclick={() => {
-                game.concede();
-              }}>{t('concede')}</button>
             {:else}
               <p class="phase">{t('demonstratingOther', { name: nameOf(view, round.phase.player) })}</p>
             {/if}
@@ -247,6 +223,12 @@
   </aside>
 </div>
 
+{#if game.demonstrating && round?.phase.kind === 'demonstrating'}
+  <div class="narrow-only">
+    <Controller {game} docked moves={round.phase.moves_made} bid={round.phase.bid} />
+  </div>
+{/if}
+
 <style>
   .game {
     display: grid;
@@ -274,6 +256,18 @@
     color: var(--muted);
     font-size: 0.85rem;
     text-align: center;
+  }
+  /* Touch screens without a hovering pointer get the tap hint instead. */
+  .hint.touch {
+    display: none;
+  }
+  @media (hover: none) {
+    .hint.keys {
+      display: none;
+    }
+    .hint.touch {
+      display: block;
+    }
   }
   .loading {
     aspect-ratio: 1;
@@ -367,59 +361,25 @@
   .bid label {
     flex: 1;
   }
-  .controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem 1.5rem;
-    align-items: center;
-  }
-  /* The direction pad as a cross: up on top, left-down-right below. */
-  .pad {
+  .wide-only {
     display: grid;
-    grid-template-columns: repeat(3, 2.75rem);
-    grid-template-rows: repeat(2, 2.75rem);
-    gap: 0.3rem;
+    gap: 0.85rem;
+    justify-items: start;
   }
-  .dir {
-    padding: 0;
-    font-size: 1rem;
+  .narrow-only {
+    display: none;
   }
-  .dir.up {
-    grid-column: 2;
-    grid-row: 1;
-  }
-  .dir.left {
-    grid-column: 1;
-    grid-row: 2;
-  }
-  .dir.down {
-    grid-column: 2;
-    grid-row: 2;
-  }
-  .dir.right {
-    grid-column: 3;
-    grid-row: 2;
-  }
-  .pickers {
-    display: grid;
-    grid-template-columns: repeat(2, 2.75rem);
-    gap: 0.5rem;
-  }
-  .pick {
-    width: 2.75rem;
-    height: 2.75rem;
-    padding: 0;
-    border-radius: 50%;
-    background: var(--robot);
-    box-shadow: inset 0 -3px 4px rgb(0 0 0 / 20%);
-  }
-  .pick:hover:not(:disabled) {
-    background: var(--robot);
-  }
-  .pick[aria-pressed='true'] {
-    box-shadow:
-      0 0 0 3px var(--surface),
-      0 0 0 6px var(--robot);
+  /* Phones get the docked controller instead, and room for it below. */
+  @media (max-width: 62rem) {
+    .wide-only {
+      display: none;
+    }
+    .narrow-only {
+      display: block;
+    }
+    .game.docked {
+      padding-bottom: 12rem;
+    }
   }
   .moves {
     font-weight: 600;
