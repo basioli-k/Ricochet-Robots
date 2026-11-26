@@ -1,5 +1,5 @@
 //! The single fixed board, ported from the legacy PHP app
-//! (`legacy/controller/gameplayController.php`).
+//! (its `gameplayController.php`; the literal is kept in `tools/legacy_board.php`).
 //!
 //! Walls keep the legacy per-cell encoding so the data can be diffed against
 //! the original: four digits per cell for the left, top, right and bottom

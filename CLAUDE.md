@@ -6,9 +6,10 @@ Online multiplayer version of the Ricochet Robots board game.
 
 ## State of the code
 
-The current code is a legacy PHP + jQuery app being replaced. Follow
-`docs/rewrite-plan.md` for the target architecture and phase order; don't
-extend the PHP code beyond fixes needed to keep it running.
+The legacy PHP + jQuery app has been replaced and removed (its board data
+survives in `tools/legacy_board.php` for `tools/board_oracle.py`). Follow
+`docs/rewrite-plan.md` for the architecture; it also records the audit of
+the old app.
 
 ## Target stack
 

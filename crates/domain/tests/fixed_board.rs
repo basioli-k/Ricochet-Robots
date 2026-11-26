@@ -49,7 +49,7 @@ fn outer_edge_is_walled_like_the_legacy_data() {
 
 /// Expected stops from the start position, computed independently by
 /// simulating the legacy JavaScript movement on the legacy PHP data
-/// (`legacy/tools/board_oracle.py`).
+/// (`tools/board_oracle.py`).
 #[test]
 fn first_moves_match_the_legacy_game() {
     let board = fixed_board::board();
@@ -79,7 +79,7 @@ fn first_moves_match_the_legacy_game() {
 }
 
 /// Every target sits on its legacy cell. Expected values from
-/// `legacy/tools/board_oracle.py`.
+/// `tools/board_oracle.py`.
 #[test]
 fn targets_sit_on_their_legacy_cells() {
     let board = fixed_board::board();
@@ -110,7 +110,7 @@ fn targets_sit_on_their_legacy_cells() {
 
 /// Twelve-move games from the start position end where the legacy game
 /// ends them, exercising interior walls and robots blocking each other.
-/// Expected values from `legacy/tools/board_oracle.py` (fixed seed).
+/// Expected values from `tools/board_oracle.py` (fixed seed).
 #[test]
 fn move_sequences_match_the_legacy_game() {
     use Direction::{Down, Left, Right, Up};
@@ -140,7 +140,7 @@ fn move_sequences_match_the_legacy_game() {
 /// From every free cell, alone on the board, where a robot stops in each
 /// direction. One hex digit per cell: the stop row for Up/Down, the stop
 /// column for Left/Right. Pins every wall that affects movement. Expected
-/// values from `legacy/tools/board_oracle.py`.
+/// values from `tools/board_oracle.py`.
 #[test]
 fn every_stop_matches_the_legacy_game() {
     #[rustfmt::skip]

@@ -1,18 +1,19 @@
 """Expected values for crates/domain/tests/fixed_board.rs, from the legacy app.
 
-Parses the board literal in legacy/controller/gameplayController.php and
-replays moves with the rule in legacy/js/robot_movement.js: a robot moves
-until the side it is moving towards has a wall, stepping back if it would
-enter a cell holding another robot. Independent of the Rust code on purpose.
+Parses the legacy board literal kept in tools/legacy_board.php and replays
+moves with the legacy game's rule (from its robot_movement.js): a robot
+moves until the side it is moving towards has a wall, stepping back if it
+would enter a cell holding another robot. Independent of the Rust code on
+purpose.
 
-Usage, from the repository root:  python3 legacy/tools/board_oracle.py
+Usage, from the repository root:  python3 -I tools/board_oracle.py
 """
 
 import random
 import re
 from pathlib import Path
 
-PHP = Path(__file__).resolve().parents[1] / "controller" / "gameplayController.php"
+PHP = Path(__file__).resolve().parent / "legacy_board.php"
 COLORS = {"RED": "Red", "BLUE": "Blue", "GREEN": "Green", "YELLOW": "Yellow"}
 SYMBOLS = {"STAR": "Star", "PLANET": "Planet", "GEAR": "Gear", "MOON": "Moon"}
 # Direction -> (row step, col step, index of that side in the legacy code "LTRB").

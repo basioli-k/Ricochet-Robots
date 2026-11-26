@@ -1,8 +1,8 @@
 # Ricochet-Robots
 
 Online multiplayer version of the Ricochet Robots board game, originally a
-college project. A rewrite to a Rust backend and Svelte client is in
-progress; see `docs/rewrite-plan.md`.
+college project. Rewritten from PHP and jQuery to a Rust server and a
+Svelte client; see `docs/rewrite-plan.md` for the design and its history.
 
 ## Development setup
 
@@ -75,26 +75,3 @@ Only releases at least 14 days old are allowed (see `CLAUDE.md`). Check with
   check notes entries that are no longer needed.
 - GitHub Actions are pinned to the commit SHA of a release at least 14 days
   old, with the version in a comment.
-
-### Legacy PHP app (`legacy/`)
-
-1. Serve `legacy/` as the document root, and set `RR_DB_DSN`, `RR_DB_USER`
-   and `RR_DB_PASSWORD` in the web server (see `.env.example` for Apache
-   and PHP-FPM examples).
-2. Export the same variables in your shell (the web server settings don't
-   reach the command line), then create tables and demo accounts once:
-   ```bash
-   [ -f .env ] || cp .env.example .env   # then fill in the values
-   set -a; . ./.env; set +a
-   php legacy/app/database/create_tables.php && php legacy/app/database/seed_tables.php
-   ```
-   The seed prints the generated passwords. A second run stops at
-   `create_tables.php` because the table already exists.
-
-Make `.env` unwritable by the web server user, or delete it after seeding:
-legacy endpoints can read or empty any file the server can both read and
-write, even outside the docroot (audit finding S1).
-
-The game keeps its state in `legacy/**/*.log`. They change while the app
-runs; don't commit those changes. To reset a stuck game, empty them with
-`cd legacy && python3 clear_log_files.py` (it only works from `legacy/`).

@@ -5,8 +5,8 @@ Status: decisions agreed (section 5). Measured against
 
 ## 1. What exists today
 
-Paths in sections 1 and 2 are as audited; since phase 1 they live under
-`legacy/`.
+Paths in sections 1 and 2 are as audited. The old app moved to `legacy/`
+in phase 1 and was deleted in phase 10; its history is in git.
 
 A PHP 7 MVC-ish app (`index.php` router, `controller/`, `model/`, `view/`)
 for accounts and stats, plus a multiplayer game built from:
@@ -105,7 +105,7 @@ ricochet-robots/
 - Porting the fixed board (done in phase 2): the `new Field("....")`
   literal in `gameplayController.php` was ported by hand into
   `crates/domain/src/fixed_board.rs`, keeping the legacy wall encoding.
-  `legacy/tools/board_oracle.py` simulates the legacy game on the PHP data
+  `tools/board_oracle.py` simulates the legacy game on the PHP data
   to produce the parity tests' expected values. No wall was one-sided.
 - Robots start at the legacy positions; random placement arrives with
   random boards.
