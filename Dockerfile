@@ -16,11 +16,14 @@ RUN npm run build
 
 FROM rust:1.97.1-slim-bookworm@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3 AS server
 WORKDIR /src
+# Use the image's toolchain (the same version rust-toolchain.toml pins)
+# without rustup re-checking its components online.
+ENV RUSTUP_TOOLCHAIN=1.97.1
 COPY . .
 RUN cargo build --release --locked -p server
 
 FROM debian:bookworm-20261104-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
-RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin rr \
+RUN useradd --system --uid 999 --home-dir /app --shell /usr/sbin/nologin rr \
     && mkdir /data && chown rr /data
 COPY --from=server /src/target/release/server /app/server
 COPY --from=web /src/web/dist /app/web
