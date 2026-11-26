@@ -18,11 +18,6 @@ crates:sqlx-sqlite@0.9.1      # RUSTSEC-2026-0459 fix path
 crates:url@2.5.9              # RUSTSEC-2026-0592 fix
 crates:form_urlencoded@1.2.3  # required by url 2.5.9
 
-# Owner-approved (2026-11-24): the SQLite session store for sqlx 0.9 was one
-# day short of 14 days; the older 0.15.1 needs sqlx 0.8, which can't link
-# alongside our sqlx 0.9 (both link the native sqlite3 library).
-crates:tower-sessions-sqlx-store@0.16.0  # owner-approved, 1 day short
-
 # cookie 0.18.2 has RUSTSEC-2026-0594 (private cookie nonces can repeat in
 # forking processes); 0.18.3 fixes it. Pulled in by tower-sessions.
 crates:cookie@0.18.3                     # RUSTSEC-2026-0594 fix
