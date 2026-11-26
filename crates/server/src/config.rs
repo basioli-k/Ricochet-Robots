@@ -1,6 +1,7 @@
 //! Server settings, read from the environment (see `.env.example`).
 
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use crate::rooms::manager::RoomLimits;
 
@@ -9,7 +10,7 @@ pub struct Config {
     pub bind: SocketAddr,
     pub database_url: String,
     /// The built web client to serve (`npm run build` writes `web/dist`).
-    pub web_dir: String,
+    pub web_dir: PathBuf,
     /// Where players reach the server, e.g. `https://ricochet.example`;
     /// cookies are marked Secure when it is HTTPS.
     pub public_base_url: String,
@@ -55,7 +56,7 @@ impl Config {
         Ok(Self {
             bind,
             database_url: var("RR_DATABASE_URL").unwrap_or_else(|| "sqlite://ricochet.db".into()),
-            web_dir: var("RR_WEB_DIR").unwrap_or_else(|| "web/dist".into()),
+            web_dir: var("RR_WEB_DIR").map_or_else(|| "web/dist".into(), PathBuf::from),
             public_base_url: public_base_url(var("RR_PUBLIC_BASE_URL"))?,
             guest_starts: limit(&var, "RR_GUEST_STARTS", 5)?,
             guest_window_secs: limit(&var, "RR_GUEST_WINDOW_SECS", 600)?,
@@ -153,7 +154,7 @@ mod tests {
         let c = config(&[]).unwrap();
         assert_eq!(c.bind, "127.0.0.1:8080".parse().unwrap());
         assert_eq!(c.database_url, "sqlite://ricochet.db");
-        assert_eq!(c.web_dir, "web/dist");
+        assert_eq!(c.web_dir, PathBuf::from("web/dist"));
         assert_eq!(c.public_base_url, "http://localhost:8080");
         assert_eq!((c.guest_starts, c.guest_window_secs), (5, 600));
         assert_eq!(c.rooms, RoomLimits::default());
@@ -217,7 +218,7 @@ mod tests {
         assert_eq!((c.guest_starts, c.guest_window_secs), (7, 60));
         assert_eq!(c.bind, "0.0.0.0:9000".parse().unwrap());
         assert_eq!(c.database_url, "sqlite://other.db");
-        assert_eq!(c.web_dir, "/srv/web");
+        assert_eq!(c.web_dir, PathBuf::from("/srv/web"));
         assert_eq!(c.public_base_url, "https://ricochet.example");
     }
 
