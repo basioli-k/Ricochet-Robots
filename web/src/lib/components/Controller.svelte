@@ -50,7 +50,7 @@
   </div>
   <div class="pad">
     {#each directions as { dir, label, arrow } (dir)}
-      <button class="dir {dir} {game.selected}" aria-label={t(label)} onclick={() => {
+      <button class="dir {dir}" aria-label={t(label)} onclick={() => {
         game.move(dir);
       }}>{arrow}</button>
     {/each}
@@ -174,6 +174,24 @@
     .docked .pick {
       width: 2.2rem;
       height: 2.2rem;
+    }
+  }
+  @media (max-width: 21rem) {
+    .docked {
+      --key: 2.5rem;
+      padding-inline: 0.6rem;
+    }
+    .docked .pickers {
+      grid-template-columns: repeat(2, 2rem);
+      gap: 0.35rem;
+    }
+    .docked .pick {
+      width: 2rem;
+      height: 2rem;
+    }
+    .docked .side button {
+      padding: 0.4rem 0.5rem;
+      font-size: 0.8rem;
     }
   }
 </style>

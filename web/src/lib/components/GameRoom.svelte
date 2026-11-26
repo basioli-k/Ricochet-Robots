@@ -378,7 +378,7 @@
       display: block;
     }
     .game.docked {
-      padding-bottom: 12rem;
+      padding-bottom: calc(12rem + env(safe-area-inset-bottom));
     }
   }
   .moves {
