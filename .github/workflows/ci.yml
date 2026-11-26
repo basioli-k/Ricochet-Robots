@@ -87,3 +87,19 @@ jobs:
           name: e2e-traces
           path: web/test-results
           retention-days: 7
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: docker build -t ricochet-robots .
+      # The container must start, answer health checks and serve the client.
+      - name: Smoke-test the image
+        run: |
+          docker run -d --name rr -p 8080:8080 ricochet-robots
+          for _ in $(seq 1 30); do curl -sf localhost:8080/health && break; sleep 1; done
+          curl -sf localhost:8080/health
+          curl -sf localhost:8080/ | grep -q '<div id="app">'
+          test "$(docker exec rr id -u)" != 0
+

@@ -23,6 +23,19 @@ the rules.
 cargo run -p server                                    # http://localhost:8080
 ```
 
+Or as one container (the server serving the built client, SQLite in the
+`/data` volume, running as an unprivileged user):
+
+```bash
+docker build -t ricochet-robots .
+docker run -p 8080:8080 -v rr-data:/data ricochet-robots
+```
+
+Behind HTTPS, also pass `-e RR_PUBLIC_BASE_URL=https://your.host`: it turns
+on Secure cookies and is the only Origin the game socket accepts. Don't put
+a reverse proxy in front yet: per-client limits key on the connecting
+address (see `.env.example`).
+
 The server serves the built client from `RR_WEB_DIR` (default `web/dist`)
 next to the API; settings are listed in `.env.example`. For development,
 run `npm run dev` in `web/` instead and open http://localhost:5173.
