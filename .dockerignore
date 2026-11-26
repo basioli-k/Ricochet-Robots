@@ -1,0 +1,10 @@
+# Only sources go into the build context.
+.git
+target
+web/node_modules
+web/dist
+web/test-results
+web/playwright-report
+*.db
+*.db-*
+.env
