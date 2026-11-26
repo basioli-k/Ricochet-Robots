@@ -9,10 +9,22 @@
 </script>
 
 <label class="language">
-  {t('language')}
+  <span class="muted">{t('language')}</span>
   <select value={i18n.locale} onchange={choose}>
     {#each Object.entries(localeNames) as [code, name] (code)}
       <option value={code}>{name}</option>
     {/each}
   </select>
 </label>
+
+<style>
+  .language {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-weight: 400;
+  }
+  select {
+    padding: 0.35rem 0.6rem;
+  }
+</style>
